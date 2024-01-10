@@ -20,7 +20,7 @@ scene = uavScenario("UpdateRate",updateRate,"StopTime",simTime,"HistoryBufferSiz
 % scene = uavScenario("UpdateRate",updateRate,"StopTime",simTime,"HistoryBufferSize",200, "ReferenceLocation", "ENU");
 
 % Create polygon target.
-[scene, roi] = createTarget(scene, xboundsTarget, yboundsTarget, zlimitsTarget, sizeTarget);
+[scene, roi] = createTarget(scene, xboundsTarget, yboundsTarget, zlimitsTarget, sizeTarget, [100 100]);
 
 % Create UAV platform.
 [scene, plat] = createPlatform(scene, initialVelocity, initialPosition);

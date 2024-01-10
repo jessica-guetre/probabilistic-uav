@@ -14,7 +14,8 @@ sizeTarget = 2;
 % UAV platform constants
 maxVelocity = 15;
 initialVelocity = [sqrt(maxVelocity^(2)/2) sqrt(maxVelocity^(2)/2) 0];
-initialPosition = [10 10 960];
+initialPosition = [mean(xlimitsScene) mean(ylimitsScene) 960];
+% initialPosition = [10 10 960];
 % initialPosition = [160 160 960];
 
 % Lidar constants

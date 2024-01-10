@@ -1,8 +1,6 @@
 function [scene, plat] = createPlatform(scene, initialVelocity, initialPosition)
     % createPlatform - ...
     %
-    %   [scene, plat] = createPlatform(scene, velocity)
-    %
     % Inputs:
     %   - velocity: ...
     %
