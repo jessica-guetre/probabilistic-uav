@@ -48,7 +48,7 @@ for r = 1:gridSize(1)
     end
 end
 
-% Create target and add to the scene
+% Create target and add to the gridScene
 probabilities = weightedGrid / sum(weightedGrid, 'all');
 cumulativeProbabilities = cumsum(probabilities(:));
 targetCellIndex = find(cumulativeProbabilities >= rand(), 1);
@@ -63,33 +63,22 @@ end
 addMesh(gridScene, "polygon", {targetVertices, targetZLimits}, colors.Target);
 
 % Define target ROI.
-roi = [targetVertices(1), targetVertices(2), targetVertices(3), targetVertices(4)];
-
-% Show the scenario.
-show3D(gridScene);
-xlim([0 100])
-ylim([0 100])
-zlim([-5 40])
+roi = [targetPosition(1), targetPosition(1) + 2, targetPosition(2), targetPosition(2) + 2, 0, 2];
 
 % Create UAV platform.
-[scene, plat] = createPlatform(scene, initialVelocity, initialPosition);
+plat = uavPlatform("UAV",gridScene,"InitialVelocity",initialVelocity,"InitialPosition",initialPosition,"ReferenceFrame","ENU"); 
+updateMesh(plat,"quadrotor",{1.2},[1 0 0],eul2tform([0 0 pi]));
 
-% Spiral Search Pattern
-directions = [1 0; 0 1; -1 0; 0 -1]; % Right, Up, Left, Down
-currentDirectionIndex = 1;
-nextDirectionChangeTime = segmentLength / maxSpeed;
-disp('nextDirectionChangeTime: ');
-disp(nextDirectionChangeTime);
-
-% % Add the terrain mesh to the scene with the specified color.
-% addMesh(scene, "terrain", {terrainName, xlimits, ylimits}, terrainColor);
+% Lawnmower Search Pattern
+turnAround = false; % Flag to indicate turn around
 
 % Create lidar sensor.
-[plat, lidar] = createLidar(plat, updateRate, maxRange, azimuthResolution, elevationResolution, elevationLimits);
+lidarModel = uavLidarPointCloudGenerator("UpdateRate",updateRate,"MaxRange",maxRange,"AzimuthResolution",azimuthResolution,"ElevationLimits",elevationLimits,"ElevationResolution",elevationResolution,"HasOrganizedOutput",true);
+lidar = uavSensor("Lidar",plat,lidarModel,MountingLocation=[0,0,-1]);
 
 % Set up the 3D view of the scenario.
-[ax, plotFrames] = show3D(scene);
-% plot3(0,0,0,"Marker","diamond","MarkerFaceColor","green","Parent",plotFrames.UAV.BodyFrame);
+[ax, plotFrames] = show3D(gridScene);
+plot3(0,0,0,"Marker","diamond","MarkerFaceColor","green","Parent",plotFrames.UAV.BodyFrame);
 xlim(xlimitsScene);
 ylim(ylimitsScene);
 zlim(zlimitsScene);
@@ -111,20 +100,20 @@ ptOut = cell(1,((updateRate*simTime) +1));
 
 map3D = occupancyMap3D(1);
 
-setup(scene); 
-disp('scene.StopTime: ');
-disp(scene.StopTime)
+setup(gridScene); 
+disp('gridScene.StopTime: ');
+disp(gridScene.StopTime)
 
 ptIdx = 0;
 printCount = 0;
 targetFound = false;
-while scene.IsRunning
+while gridScene.IsRunning
     ptIdx = ptIdx + 1;
 
     printCount = printCount + 1;
     if printCount >= 10
-        disp('scene.CurrentTime: ');
-        disp(scene.CurrentTime);
+        disp('gridScene.CurrentTime: ');
+        disp(gridScene.CurrentTime);
         printCount = 0;
     end
 
@@ -133,7 +122,7 @@ while scene.IsRunning
 
     if isUpdated
         % Get Lidar sensor's pose relative to ENU reference frame.
-        sensorPose = getTransform(scene.TransformTree,"ENU","UAV/Lidar",lidarSampleTime);
+        sensorPose = getTransform(gridScene.TransformTree,"ENU","UAV/Lidar",lidarSampleTime);
 
         % Process the simulated Lidar pointcloud.
         ptc = pt{ptIdx};
@@ -156,7 +145,7 @@ while scene.IsRunning
         end
 
         figure(1)
-        show3D(scene,"Time",lidarSampleTime,"FastUpdate",true,"Parent",ax);
+        show3D(gridScene,"Time",lidarSampleTime,"FastUpdate",true,"Parent",ax);
         xlim(xlimitsScene);
         ylim(ylimitsScene);
         zlim(zlimitsScene);
@@ -173,40 +162,35 @@ while scene.IsRunning
     zlim(zlimitsScene);
 
     % Update the time and motion
-    currentTime = scene.CurrentTime;
+    currentTime = gridScene.CurrentTime;
     motion = read(plat);
 
-    % Check if it's time to change direction
-    if currentTime >= nextDirectionChangeTime
-        % Increase segment length at the end of each loop
-        disp('currentDirectionIndex: ');
-        disp(currentDirectionIndex);
-        if currentDirectionIndex == 4 ||  currentDirectionIndex == 2
-            segmentLength = segmentLength + segmentStep;
+    % Check if UAV has reached the end of the current row
+    if (motion(4) > 0 && motion(1) > (xlimitsScene(2) - 10)) || (motion(4) < 0 && motion(1) < (xlimitsScene(1) + 10))
+        disp('Value change');
+        turnAround = true;
+        yStartingPosition = motion(2);
+        xSpeed = motion(4);
+        motion(4:5) = [0 maxSpeed];
+    end
+
+    if turnAround
+        if motion(2) - yStartingPosition  >= rowHeight
+            turnAround = false;
+            motion(4:5) = [-xSpeed 0];
         end
-        
-        % Update direction
-        currentDirectionIndex = mod(currentDirectionIndex, 4) + 1;
-        motion(4:5) = maxSpeed * directions(currentDirectionIndex, :);
-        
-        % Schedule next direction change
-        nextDirectionChangeTime = currentTime + segmentLength / maxSpeed;
-        disp('Updated velocity motion(4:5): ');
-        disp(motion(4:5));
-        disp('nextDirectionChangeTime: ');
-        disp(nextDirectionChangeTime);
-        disp('segmentLength: ');
-        disp(segmentLength);
     end
 
     disp('Current velocity motion(4:5) and position motion(1:2): ');
     disp(motion(4:5));
     disp(motion(1:2))
+    disp('turnAround: ');
+    disp(turnAround);
 
     % Move the UAV
-    motion(1:2) = motion(1:2) + motion(4:5)/scene.UpdateRate;
+    motion(1:2) = motion(1:2) + motion(4:5)/gridScene.UpdateRate;
     move(plat, motion);
-    advance(scene);
-    updateSensors(scene); 
+    advance(gridScene);
+    updateSensors(gridScene);
     
 end
