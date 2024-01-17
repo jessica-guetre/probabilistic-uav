@@ -2,7 +2,7 @@
 clear scene;
 clear plat;
 clear lidar;
-removeCustomTerrain('britishcolumbia')
+% removeCustomTerrain('britishcolumbia')
 
 % Scene constants
 dtedFile = 'britishcolumbia.dt2';
@@ -13,7 +13,7 @@ terrainColor = [0.4660 0.6740 0.1880];
 xlimits = [1 spatialReference.RasterSize(1)];
 ylimits = [1 spatialReference.RasterSize(2)];
 % Add custom terrain from DTED file.
-addCustomTerrain(terrainName, dtedFile);
+% addCustomTerrain(terrainName, dtedFile);
 % Create a UAV scene with a reference location specified in the center of the terrain.
 refLocation = [mean(spatialReference.LatitudeLimits), mean(spatialReference.LongitudeLimits), 0];
 scene = uavScenario("UpdateRate",updateRate,"StopTime",simTime,"HistoryBufferSize",200, "ReferenceLocation", refLocation);
