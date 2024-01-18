@@ -69,7 +69,7 @@ roi = [targetPosition(1), targetPosition(1) + 2, targetPosition(2), targetPositi
 plat = uavPlatform("UAV",gridScene,"InitialVelocity",initialVelocity,"InitialPosition",initialPosition,"ReferenceFrame","ENU"); 
 updateMesh(plat,"quadrotor",{1.2},[1 0 0],eul2tform([0 0 pi]));
 
-% Lawnmower Search Pattern
+% Parallel line search pattern
 turnAround = false; % Flag to indicate turn around
 
 % Create lidar sensor.
