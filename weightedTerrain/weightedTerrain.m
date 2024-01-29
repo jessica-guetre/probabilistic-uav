@@ -20,7 +20,7 @@ colors = struct('Path', [1 0 0], 'River', [0 0 1], 'Tree', [0 1 0], 'Steep', [0 
 weightedGrid = weights.Empty * ones(gridSize);
 
 % Select terrain type
-selectedTerrainType = 'Type3'; % 'Type1', 'Type2', 'Type3'
+selectedTerrainType = 'Type1'; % 'Type1', 'Type2', 'Type3'
 featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
 
 % Add a mesh for each terrain feature based on the defined vertices
