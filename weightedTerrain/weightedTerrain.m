@@ -19,18 +19,9 @@ weights = struct('Path', 5, 'River', 1, 'Tree', 2, 'Steep', 1, 'Empty', 3);
 colors = struct('Path', [1 0 0], 'River', [0 0 1], 'Tree', [0 1 0], 'Steep', [0 0 0], 'Empty', [1 1 1], 'Target', [0.4940, 0.1840, 0.5560]);
 weightedGrid = weights.Empty * ones(gridSize);
 
-% Populate the grid with terrain features
-featureVertices = struct();
-featureVertices.Path = {[1, 30; gridSize(1), 30; gridSize(1), 31; 1, 31]};
-featureVertices.River = {[40, 1; 45, 1; 45, gridSize(2); 40, gridSize(2)]};
-featureVertices.Tree = {
-    [20, 1; gridSize(1), 1; gridSize(1), 10; 20, 10], % Tree1
-    [60, 10; gridSize(1), 10; gridSize(1), 20; 60, 20] % Tree2
-};
-featureVertices.Steep = {
-    [1, 98; gridSize(1), 98; gridSize(1), gridSize(2); 1, gridSize(2)], % Steep1
-    [10, 90; gridSize(1), 90; gridSize(1), 98; 10, 98] % Steep2
-};
+% Select terrain type
+selectedTerrainType = 'Type3'; % 'Type1', 'Type2', 'Type3'
+featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
 
 % Add a mesh for each terrain feature based on the defined vertices
 for featureType = fieldnames(featureVertices)'
@@ -38,6 +29,10 @@ for featureType = fieldnames(featureVertices)'
 
     for i = 1:length(featureArray)
         vertices = featureArray{i};
+        disp('vertices: ');
+        disp(vertices);
+        disp('featureType: ');
+        disp(featureType);
 
         minX = min(vertices(:,1));
         maxX = max(vertices(:,1));
