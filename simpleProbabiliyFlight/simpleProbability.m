@@ -94,6 +94,10 @@ waypointIndex = 1;
 waypoints(1, :, waypointIndex) = currentPosition;
 orientation(1, :, waypointIndex) = [0, 0, 0]; % Initial orientation (assuming zero)
 
+% Weights to be adjusted
+successDistanceWeight = 1;
+successTerrainWeight = 1;
+
 % Main loop - continue until all cells are visited
 while any(visited(:) == 0)  % While there are unvisited cells
 
@@ -105,7 +109,7 @@ while any(visited(:) == 0)  % While there are unvisited cells
                 distanceSum = abs(currentPosition(1) - x) + abs(currentPosition(2) - y);
                 % Get the field name from the cell array using the numeric index from terrainGrid
                 terrainType = terrainFeatureNames{terrainGrid(x, y)};
-                successGrid(x, y) = (1/distanceSum) * weights.(terrainType);
+                successGrid(x, y) = (1/(distanceSum * successDistanceWeight)) * weights.(terrainType) * successTerrainWeight;
             end
         end
     end
