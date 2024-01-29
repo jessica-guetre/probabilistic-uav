@@ -1,4 +1,4 @@
-% filename = 'parallelLineGif.gif'; 
+filename = 'simpleProbability.gif'; 
 
 % Define terrain features
 terrainFeatures = struct('Path', 1, 'River', 2, 'Tree', 3, 'Steep', 4, 'Empty', 5);
@@ -81,12 +81,13 @@ lidarModel = uavLidarPointCloudGenerator("UpdateRate",updateRate,"MaxRange",maxR
 lidar = uavSensor("Lidar",plat,lidarModel,MountingLocation=[0,0,-1]);
 
 % Pre-allocate the waypoints and orientation array
-maxNumWaypoints = gridSize(1) * gridSize(2); % Example estimate
+maxNumWaypoints = gridSize(1) * gridSize(2) / 2; % Example estimate
 waypoints = zeros(1, 3, maxNumWaypoints);
 orientation = zeros(1, 3, maxNumWaypoints);
 
 % Initialize variables for the loop
-currentPosition = [10, 10, 20]; % Assuming this is the starting position
+uavElevation = 20;
+currentPosition = [10, 10, uavElevation]; % Assuming this is the starting position
 visited = zeros(size(terrainGrid)); % To keep track of visited cells
 visited(currentPosition(1), currentPosition(2)) = 1;
 waypointIndex = 1;
@@ -115,7 +116,7 @@ while any(visited(:) == 0)  % While there are unvisited cells
 
     % Set min distance and success position
     minDistance = inf;
-    successPosition = [successX(1), successY(1), 20]; % Default to the first one
+    successPosition = [successX(1), successY(1), uavElevation]; % Default to the first one
 
     % Check which cell is closest if there are several choices
     for i = 1:length(successX)
@@ -157,7 +158,6 @@ while any(visited(:) == 0)  % While there are unvisited cells
     for i = 1:size(proposedPath, 1)
         waypointIndex = waypointIndex + 1;
         waypoints(1, :, waypointIndex) = proposedPath(i, :);
-        visited(proposedPath(i, 1), proposedPath(i, 2)) = 1;
 
         % Calculate orientation based on movement direction
         if i > 1
@@ -173,6 +173,9 @@ while any(visited(:) == 0)  % While there are unvisited cells
 
     % Update the current position
     currentPosition = successPosition;
+
+    % Update visited cells based on Lidar range along the proposedPath
+    visited = updateVisitedFromLidar(proposedPath, visited, gridSize, maxRange, elevationLimits, uavElevation);
 
     % Display the number of cells not visited yet
     numNotVisited = sum(sum(visited == 0));
@@ -205,8 +208,8 @@ ptOut = cell(1,((updateRate*simTime) +1));
 map3D = occupancyMap3D(1);
 
 setup(gridScene); 
-disp('gridScene.StopTime: ');
-disp(gridScene.StopTime)
+% disp('gridScene.StopTime: ');
+% disp(gridScene.StopTime)
 
 ptIdx = 0;
 printCount = 0;
@@ -214,12 +217,12 @@ targetFound = false;
 while gridScene.IsRunning
     ptIdx = ptIdx + 1;
 
-    printCount = printCount + 1;
-    if printCount >= 10
-        disp('gridScene.CurrentTime: ');
-        disp(gridScene.CurrentTime);
-        printCount = 0;
-    end
+    % printCount = printCount + 1;
+    % if printCount >= 50
+    %     disp('gridScene.CurrentTime: ');
+    %     disp(gridScene.CurrentTime);
+    %     printCount = 0;
+    % end
 
     % Read the simulated lidar data from the scenario
     [isUpdated,lidarSampleTime,pt{ptIdx}] = read(lidar);
@@ -246,6 +249,7 @@ while gridScene.IsRunning
         if (~isempty(roiIndices) && targetFound == false)
             disp('Polygon detected by Lidar!');
             targetFound = true;
+            break;
         end
 
         % figure(1)
@@ -265,19 +269,14 @@ while gridScene.IsRunning
     ylim(ylimitsScene);
     zlim(zlimitsScene);
 
-    % frame = getframe(1); 
-    % im = frame2im(frame); 
-    % [imind,cm] = rgb2ind(im,256); 
-    % if ptIdx == 1
-    %     imwrite(imind,cm,filename,'gif', 'Loopcount',inf); 
-    % else
-    %     imwrite(imind,cm,filename,'gif','WriteMode','append'); 
-    % end
-
-   % Efficiently updating the scenario display
-    % if ishandle(ax) % Checking if the axis handle is valid
-    %     show3D(gridScene, "Time", lidarSampleTime, "FastUpdate", true, "Parent", ax);
-    % end
+    frame = getframe(2); 
+    im = frame2im(frame); 
+    [imind,cm] = rgb2ind(im,256); 
+    if ptIdx == 1
+        imwrite(imind,cm,filename,'gif', 'Loopcount',inf); 
+    else
+        imwrite(imind,cm,filename,'gif','WriteMode','append'); 
+    end
 
     % Move the UAV efficiently
     if ptIdx + 1 <= waypointIndex
@@ -289,4 +288,27 @@ while gridScene.IsRunning
     % Efficient sensor updates
     advance(gridScene);
     updateSensors(gridScene);
+end
+
+function visited = updateVisitedFromLidar(proposedPath, visited, gridSize, maxRange, elevationLimits, uavElevation)
+    % Convert elevation limits to radians
+    elevationRange = abs(deg2rad(elevationLimits(1) - elevationLimits(2)));
+
+    % Calculate the maximum horizontal detection distance given the UAV altitude and elevation angle
+    maxHorizontalRange = tan(elevationRange) * abs(uavElevation);
+    
+    for pathIdx = 1:size(proposedPath, 1)
+        currentPathPosition = proposedPath(pathIdx, :); % Use the full position
+        
+        for x = 1:gridSize(1)
+            for y = 1:gridSize(2)
+                % Calculate horizontal and total distance to the cell
+                horizontalDistance = sqrt((currentPathPosition(1) - (x-1))^2 + (currentPathPosition(2) - (y-1))^2);
+
+                if horizontalDistance <= maxHorizontalRange
+                    visited(x, y) = 1;
+                end
+            end
+        end
+    end
 end
