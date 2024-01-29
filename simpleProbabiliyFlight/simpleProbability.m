@@ -249,7 +249,7 @@ while gridScene.IsRunning
         if (~isempty(roiIndices) && targetFound == false)
             disp('Polygon detected by Lidar!');
             targetFound = true;
-            break;
+            % break;
         end
 
         % figure(1)
