@@ -13,7 +13,7 @@ removeCustomTerrain('britishcolumbia')
 clear bcScene;
 [bcScene, bcR] = terrainScene('britishcolumbia.dt2', 'britishcolumbia');
 scene = bcScene;
-zBounds = [900 1100];
+% zBounds = [900 1100];
 
 % ONTARIO
 % removeCustomTerrain("ontario")
@@ -28,9 +28,9 @@ hold on
 
 figure(2); 
 [ax,plotFrames] = show3D(scene);
-xlim([0 500])
-ylim([0 500])
-zlim(zBounds)
+xlim([1 bcR.RasterSize(1)])
+ylim([1 bcR.RasterSize(2)])
+% zlim(zBounds)
 view([-30 20])
 % axis equal
 hold on

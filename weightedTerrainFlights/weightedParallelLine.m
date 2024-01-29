@@ -1,3 +1,5 @@
+filename = 'parallelLineGif.gif'; 
+
 % Define terrain features
 terrainFeatures = struct('Path', 1, 'River', 2, 'Tree', 3, 'Steep', 4, 'Empty', 5);
 
@@ -160,6 +162,15 @@ while gridScene.IsRunning
     xlim(xlimitsScene);
     ylim(ylimitsScene);
     zlim(zlimitsScene);
+
+    frame = getframe(1); 
+    im = frame2im(frame); 
+    [imind,cm] = rgb2ind(im,256); 
+    if ptIdx == 1
+        imwrite(imind,cm,filename,'gif', 'Loopcount',inf); 
+    else
+        imwrite(imind,cm,filename,'gif','WriteMode','append'); 
+    end
 
     % Update the time and motion
     currentTime = gridScene.CurrentTime;

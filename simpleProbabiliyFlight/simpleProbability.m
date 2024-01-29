@@ -1,7 +1,8 @@
-filename = 'spiralGif.gif'; 
+% filename = 'parallelLineGif.gif'; 
 
 % Define terrain features
 terrainFeatures = struct('Path', 1, 'River', 2, 'Tree', 3, 'Steep', 4, 'Empty', 5);
+terrainFeatureNames = {'Path', 'River', 'Tree', 'Steep', 'Empty'};
 
 % Assign weights and colors to each terrain feature
 weights = struct('Path', 5, 'River', 1, 'Tree', 2, 'Steep', 1, 'Empty', 3);
@@ -26,6 +27,7 @@ colorGrid = zeros(gridSize(1), gridSize(2), 3);  % For RGB colors
 
 % Create the UAV scenario.
 gridScene = uavScenario("UpdateRate",updateRate,"StopTime",simTime,"HistoryBufferSize",200);
+gridScene.addInertialFrame("ENU","MAP",trvec2tform([1 0 0])); 
 addMesh(gridScene,"polygon",{[0 0; gridSize(1) 0; gridSize(1) gridSize(2); 0 gridSize(2)],[-5 0]},0.651*ones(1,3));
 
 for r = 1:gridSize(1)
@@ -71,16 +73,112 @@ roi = [targetPosition(1), targetPosition(1) + 2, targetPosition(2), targetPositi
 plat = uavPlatform("UAV",gridScene,"InitialVelocity",initialVelocity,"InitialPosition",initialPosition,"ReferenceFrame","ENU"); 
 updateMesh(plat,"quadrotor",{1.2},[1 0 0],eul2tform([0 0 pi]));
 
-% Spiral Search Pattern
-directions = [1 0; 0 1; -1 0; 0 -1]; % Right, Up, Left, Down
-currentDirectionIndex = 1;
-nextDirectionChangeTime = segmentLength / maxSpeed;
-disp('nextDirectionChangeTime: ');
-disp(nextDirectionChangeTime);
+% Parallel line search pattern
+turnAround = false; % Flag to indicate turn around
 
 % Create lidar sensor.
 lidarModel = uavLidarPointCloudGenerator("UpdateRate",updateRate,"MaxRange",maxRange,"AzimuthResolution",azimuthResolution,"ElevationLimits",elevationLimits,"ElevationResolution",elevationResolution,"HasOrganizedOutput",true);
 lidar = uavSensor("Lidar",plat,lidarModel,MountingLocation=[0,0,-1]);
+
+% Pre-allocate the waypoints and orientation array
+maxNumWaypoints = gridSize(1) * gridSize(2); % Example estimate
+waypoints = zeros(1, 3, maxNumWaypoints);
+orientation = zeros(1, 3, maxNumWaypoints);
+
+% Initialize variables for the loop
+currentPosition = [10, 10, 20]; % Assuming this is the starting position
+visited = zeros(size(terrainGrid)); % To keep track of visited cells
+visited(currentPosition(1), currentPosition(2)) = 1;
+waypointIndex = 1;
+waypoints(1, :, waypointIndex) = currentPosition;
+orientation(1, :, waypointIndex) = [0, 0, 0]; % Initial orientation (assuming zero)
+
+% Main loop - continue until all cells are visited
+while any(visited(:) == 0)  % While there are unvisited cells
+
+    % Calculate the success of travelling to each cell
+    successGrid = zeros(size(terrainGrid));
+    for x = 1:gridSize(1)
+        for y = 1:gridSize(2)
+            if visited(x, y) == 0
+                distanceSum = abs(currentPosition(1) - x) + abs(currentPosition(2) - y);
+                % Get the field name from the cell array using the numeric index from terrainGrid
+                terrainType = terrainFeatureNames{terrainGrid(x, y)};
+                successGrid(x, y) = (1/distanceSum) * weights.(terrainType);
+            end
+        end
+    end
+
+    % Find the cells with the highest success values
+    maxSuccess = max(successGrid(:));
+    [successX, successY] = find(successGrid == maxSuccess);
+
+    % Set min distance and success position
+    minDistance = inf;
+    successPosition = [successX(1), successY(1), 20]; % Default to the first one
+
+    % Check which cell is closest if there are several choices
+    for i = 1:length(successX)
+        successDistance = abs(successX(i) - currentPosition(1)) + abs(successY(i) - currentPosition(2));
+        if successDistance < minDistance
+            minDistance = successDistance;
+            successPosition = [successX(i), successY(i), 20];
+        elseif successDistance == minDistance
+            % If distances are equal, take the first option by breaking the loop
+            break;
+        end
+    end
+
+    disp('successPosition: ');
+    disp(successPosition);
+
+    % Calculate the range of x and y positions the UAV must occupy to get from current to success
+    if currentPosition(1) <= successPosition(1)
+        xPositions = (currentPosition(1)+1):1:successPosition(1); % Exclude the current position
+    else
+        xPositions = (currentPosition(1)-1):-1:successPosition(1); % Exclude the current position
+    end
+    
+    if currentPosition(2) <= successPosition(2)
+        yPositions = (currentPosition(2)+1):1:successPosition(2); % Exclude the current position
+    else
+        yPositions = (currentPosition(2)-1):-1:successPosition(2); % Exclude the current position
+    end
+
+    proposedPath = [];
+    for x = xPositions
+        proposedPath = [proposedPath; x, currentPosition(2), 20];
+    end
+    for y = yPositions
+        proposedPath = [proposedPath; successPosition(1), y, 20];
+    end
+
+    % Add each point in the proposed path to waypoints and calculate orientation
+    for i = 1:size(proposedPath, 1)
+        waypointIndex = waypointIndex + 1;
+        waypoints(1, :, waypointIndex) = proposedPath(i, :);
+        visited(proposedPath(i, 1), proposedPath(i, 2)) = 1;
+
+        % Calculate orientation based on movement direction
+        if i > 1
+            dx = proposedPath(i, 1) - proposedPath(i-1, 1);
+            dy = proposedPath(i, 2) - proposedPath(i-1, 2);
+            yaw = atan2(dy, dx); % Yaw angle calculation
+            orientation(1, :, waypointIndex) = [yaw, 0, 0]; % Assuming roll and pitch are zero
+        else
+            % Keep the same orientation for the first point
+            orientation(1, :, waypointIndex) = orientation(1, :, waypointIndex - 1);
+        end
+    end
+
+    % Update the current position
+    currentPosition = successPosition;
+
+    % Display the number of cells not visited yet
+    numNotVisited = sum(sum(visited == 0));
+    disp(['Number of cells not visited yet: ', num2str(numNotVisited)]);
+end
+
 
 % Set up the 3D view of the scenario.
 [ax, plotFrames] = show3D(gridScene);
@@ -98,7 +196,7 @@ scatterplot.XDataSource = "reshape(ptc.Location(:,:,1), [], 1)";
 scatterplot.YDataSource = "reshape(ptc.Location(:,:,2), [], 1)";
 scatterplot.ZDataSource = "reshape(ptc.Location(:,:,3), [], 1)";
 scatterplot.CDataSource = "reshape(ptc.Location(:,:,3), [], 1) - min(reshape(ptc.Location(:,:,3), [], 1))";
-hold off; 
+hold off;
 
 lidarSampleTime = [];
 pt = cell(1,((updateRate*simTime) +1)); 
@@ -142,20 +240,20 @@ while gridScene.IsRunning
         transformedPt = pctransform(pt{ptIdx}, tform);
         tempPtc = removeInvalidPoints(transformedPt);
         roiIndices = findPointsInROI(tempPtc,roi);
-        figure(3)
-        pcshow(tempPtc)
+        % figure(3)
+        % pcshow(tempPtc)
 
         if (~isempty(roiIndices) && targetFound == false)
             disp('Polygon detected by Lidar!');
             targetFound = true;
         end
 
-        figure(1)
-        show3D(gridScene,"Time",lidarSampleTime,"FastUpdate",true,"Parent",ax);
-        xlim(xlimitsScene);
-        ylim(ylimitsScene);
-        zlim(zlimitsScene);
-        
+        % figure(1)
+        % show3D(gridScene,"Time",lidarSampleTime,"FastUpdate",true,"Parent",ax);
+        % xlim(xlimitsScene);
+        % ylim(ylimitsScene);
+        % zlim(zlimitsScene);
+
         refreshdata
         drawnow limitrate
     end
@@ -167,50 +265,28 @@ while gridScene.IsRunning
     ylim(ylimitsScene);
     zlim(zlimitsScene);
 
-    frame = getframe(2); 
-    im = frame2im(frame); 
-    [imind,cm] = rgb2ind(im,256); 
-    if ptIdx == 1
-        imwrite(imind,cm,filename,'gif', 'Loopcount',inf); 
+    % frame = getframe(1); 
+    % im = frame2im(frame); 
+    % [imind,cm] = rgb2ind(im,256); 
+    % if ptIdx == 1
+    %     imwrite(imind,cm,filename,'gif', 'Loopcount',inf); 
+    % else
+    %     imwrite(imind,cm,filename,'gif','WriteMode','append'); 
+    % end
+
+   % Efficiently updating the scenario display
+    % if ishandle(ax) % Checking if the axis handle is valid
+    %     show3D(gridScene, "Time", lidarSampleTime, "FastUpdate", true, "Parent", ax);
+    % end
+
+    % Move the UAV efficiently
+    if ptIdx + 1 <= waypointIndex
+        move(plat,[waypoints(:,:,ptIdx+1),zeros(1,6),eul2quat(orientation(:,:,ptIdx+1)),zeros(1,3)]);
     else
-        imwrite(imind,cm,filename,'gif','WriteMode','append'); 
+        break;
     end
 
-    % Update the time and motion
-    currentTime = gridScene.CurrentTime;
-    motion = read(plat);
-
-    % Check if it's time to change direction
-    if currentTime >= nextDirectionChangeTime
-        % Increase segment length at the end of each loop
-        disp('currentDirectionIndex: ');
-        disp(currentDirectionIndex);
-        if currentDirectionIndex == 4 ||  currentDirectionIndex == 2
-            segmentLength = segmentLength + segmentStep;
-        end
-        
-        % Update direction
-        currentDirectionIndex = mod(currentDirectionIndex, 4) + 1;
-        motion(4:5) = maxSpeed * directions(currentDirectionIndex, :);
-        
-        % Schedule next direction change
-        nextDirectionChangeTime = currentTime + segmentLength / maxSpeed;
-        disp('Updated velocity motion(4:5): ');
-        disp(motion(4:5));
-        disp('nextDirectionChangeTime: ');
-        disp(nextDirectionChangeTime);
-        disp('segmentLength: ');
-        disp(segmentLength);
-    end
-
-    disp('Current velocity motion(4:5) and position motion(1:2): ');
-    disp(motion(4:5));
-    disp(motion(1:2))
-
-    % Move the UAV
-    motion(1:2) = motion(1:2) + motion(4:5)/gridScene.UpdateRate;
-    move(plat, motion);
+    % Efficient sensor updates
     advance(gridScene);
-    updateSensors(gridScene); 
-    
+    updateSensors(gridScene);
 end

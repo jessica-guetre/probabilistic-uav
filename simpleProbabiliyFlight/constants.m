@@ -1,6 +1,6 @@
 % Scenario constants.
 updateRate = 3; % in Hz
-simTime = 60;
+simTime = 1000;
 xlimitsScene = [0 100];
 ylimitsScene = [0 100];
 zlimitsScene = [-5 40];
