@@ -29,10 +29,6 @@ for featureType = fieldnames(featureVertices)'
 
     for i = 1:length(featureArray)
         vertices = featureArray{i};
-        disp('vertices: ');
-        disp(vertices);
-        disp('featureType: ');
-        disp(featureType);
 
         minX = min(vertices(:,1));
         maxX = max(vertices(:,1));
