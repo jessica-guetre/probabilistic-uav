@@ -8,7 +8,7 @@ terrainFeatureNames = {'Path', 'River', 'Tree', 'Steep', 'Empty'};
 weights = struct('Path', 5, 'River', 1, 'Tree', 2, 'Steep', 1, 'Empty', 3);
 colors = struct('Path', [1 0 0], 'River', [0 0 1], 'Tree', [0 1 0], 'Steep', [0 0 0], 'Empty', [1 1 1], 'Target', [0.4940, 0.1840, 0.5560]);
 
-% Create a grid (example: 10x10)
+% Create a grid
 gridSize = [100, 100];
 terrainGrid = zeros(gridSize);
 
@@ -76,38 +76,36 @@ updateMesh(plat,"quadrotor",{1.2},[1 0 0],eul2tform([0 0 pi]));
 % Parallel line search pattern
 turnAround = false; % Flag to indicate turn around
 
-% Create lidar sensor.
+% Create lidar sensor
 lidarModel = uavLidarPointCloudGenerator("UpdateRate",updateRate,"MaxRange",maxRange,"AzimuthResolution",azimuthResolution,"ElevationLimits",elevationLimits,"ElevationResolution",elevationResolution,"HasOrganizedOutput",true);
 lidar = uavSensor("Lidar",plat,lidarModel,MountingLocation=[0,0,-1]);
 
 % Pre-allocate the waypoints and orientation array
-maxNumWaypoints = gridSize(1) * gridSize(2) / 2; % Example estimate
+maxNumWaypoints = gridSize(1) * gridSize(2) / 2;
 waypoints = zeros(1, 3, maxNumWaypoints);
 orientation = zeros(1, 3, maxNumWaypoints);
 
 % Initialize variables for the loop
 uavElevation = 20;
-currentPosition = [10, 10, uavElevation]; % Assuming this is the starting position
-visited = zeros(size(terrainGrid)); % To keep track of visited cells
+currentPosition = [10, 10, uavElevation];
+visited = zeros(size(terrainGrid));
 visited(currentPosition(1), currentPosition(2)) = 1;
 waypointIndex = 1;
 waypoints(1, :, waypointIndex) = currentPosition;
-orientation(1, :, waypointIndex) = [0, 0, 0]; % Initial orientation (assuming zero)
+orientation(1, :, waypointIndex) = [0, 0, 0];
 
 % Weights to be adjusted
 successDistanceWeight = 1;
 successTerrainWeight = 1;
 
-% Main loop - continue until all cells are visited
-while any(visited(:) == 0)  % While there are unvisited cells
-
+% While there are unvisited cells
+while any(visited(:) == 0)
     % Calculate the success of travelling to each cell
     successGrid = zeros(size(terrainGrid));
     for x = 1:gridSize(1)
         for y = 1:gridSize(2)
             if visited(x, y) == 0
                 distanceSum = abs(currentPosition(1) - x) + abs(currentPosition(2) - y);
-                % Get the field name from the cell array using the numeric index from terrainGrid
                 terrainType = terrainFeatureNames{terrainGrid(x, y)};
                 successGrid(x, y) = (1/(distanceSum * successDistanceWeight)) * weights.(terrainType) * successTerrainWeight;
             end
@@ -129,7 +127,6 @@ while any(visited(:) == 0)  % While there are unvisited cells
             minDistance = successDistance;
             successPosition = [successX(i), successY(i), 20];
         elseif successDistance == minDistance
-            % If distances are equal, take the first option by breaking the loop
             break;
         end
     end
@@ -139,15 +136,15 @@ while any(visited(:) == 0)  % While there are unvisited cells
 
     % Calculate the range of x and y positions the UAV must occupy to get from current to success
     if currentPosition(1) <= successPosition(1)
-        xPositions = (currentPosition(1)+1):1:successPosition(1); % Exclude the current position
+        xPositions = (currentPosition(1)+1):1:successPosition(1);
     else
-        xPositions = (currentPosition(1)-1):-1:successPosition(1); % Exclude the current position
+        xPositions = (currentPosition(1)-1):-1:successPosition(1);
     end
     
     if currentPosition(2) <= successPosition(2)
-        yPositions = (currentPosition(2)+1):1:successPosition(2); % Exclude the current position
+        yPositions = (currentPosition(2)+1):1:successPosition(2);
     else
-        yPositions = (currentPosition(2)-1):-1:successPosition(2); % Exclude the current position
+        yPositions = (currentPosition(2)-1):-1:successPosition(2);
     end
 
     proposedPath = [];
@@ -167,8 +164,8 @@ while any(visited(:) == 0)  % While there are unvisited cells
         if i > 1
             dx = proposedPath(i, 1) - proposedPath(i-1, 1);
             dy = proposedPath(i, 2) - proposedPath(i-1, 2);
-            yaw = atan2(dy, dx); % Yaw angle calculation
-            orientation(1, :, waypointIndex) = [yaw, 0, 0]; % Assuming roll and pitch are zero
+            yaw = atan2(dy, dx);
+            orientation(1, :, waypointIndex) = [yaw, 0, 0];
         else
             % Keep the same orientation for the first point
             orientation(1, :, waypointIndex) = orientation(1, :, waypointIndex - 1);
@@ -179,11 +176,11 @@ while any(visited(:) == 0)  % While there are unvisited cells
     currentPosition = successPosition;
 
     % Update visited cells based on Lidar range along the proposedPath
-    visited = updateVisitedFromLidar(proposedPath, visited, gridSize, maxRange, elevationLimits, uavElevation);
+    visited = updateVisitedFromLidar(proposedPath, visited, gridSize, elevationLimits, uavElevation);
 
-    % Display the number of cells not visited yet
-    numNotVisited = sum(sum(visited == 0));
-    disp(['Number of cells not visited yet: ', num2str(numNotVisited)]);
+    % % Display the number of cells not visited yet
+    % numNotVisited = sum(sum(visited == 0));
+    % disp(['Number of cells not visited yet: ', num2str(numNotVisited)]);
 end
 
 
@@ -210,23 +207,13 @@ pt = cell(1,((updateRate*simTime) +1));
 ptOut = cell(1,((updateRate*simTime) +1)); 
 
 map3D = occupancyMap3D(1);
-
 setup(gridScene); 
-% disp('gridScene.StopTime: ');
-% disp(gridScene.StopTime)
 
 ptIdx = 0;
 printCount = 0;
 targetFound = false;
 while gridScene.IsRunning
     ptIdx = ptIdx + 1;
-
-    % printCount = printCount + 1;
-    % if printCount >= 50
-    %     disp('gridScene.CurrentTime: ');
-    %     disp(gridScene.CurrentTime);
-    %     printCount = 0;
-    % end
 
     % Read the simulated lidar data from the scenario
     [isUpdated,lidarSampleTime,pt{ptIdx}] = read(lidar);
@@ -294,19 +281,15 @@ while gridScene.IsRunning
     updateSensors(gridScene);
 end
 
-function visited = updateVisitedFromLidar(proposedPath, visited, gridSize, maxRange, elevationLimits, uavElevation)
-    % Convert elevation limits to radians
+function visited = updateVisitedFromLidar(proposedPath, visited, gridSize, elevationLimits, uavElevation)
     elevationRange = abs(deg2rad(elevationLimits(1) - elevationLimits(2)));
-
-    % Calculate the maximum horizontal detection distance given the UAV altitude and elevation angle
     maxHorizontalRange = tan(elevationRange) * abs(uavElevation);
     
     for pathIdx = 1:size(proposedPath, 1)
-        currentPathPosition = proposedPath(pathIdx, :); % Use the full position
+        currentPathPosition = proposedPath(pathIdx, :);
         
         for x = 1:gridSize(1)
             for y = 1:gridSize(2)
-                % Calculate horizontal and total distance to the cell
                 horizontalDistance = sqrt((currentPathPosition(1) - (x-1))^2 + (currentPathPosition(2) - (y-1))^2);
 
                 if horizontalDistance <= maxHorizontalRange
