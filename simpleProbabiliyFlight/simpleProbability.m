@@ -1,4 +1,4 @@
-filename = 'simpleProbability.gif'; 
+filename = 'simpleProbability.gif';
 
 % Define terrain features
 terrainFeatures = struct('Path', 1, 'River', 2, 'Tree', 3, 'Steep', 4, 'Empty', 5);
