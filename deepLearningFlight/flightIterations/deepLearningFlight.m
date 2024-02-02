@@ -28,7 +28,7 @@ addTerrainMeshes(gridScene, featureVertices, weights, colors);
 [plat, lidar] = initializeUAVAndSensors(gridScene, initialPosition, updateRate, maxRange, azimuthResolution, elevationLimits, elevationResolution);
 
 % Determine Waypoints
-[waypoints, orientation] = determineWaypoints(gridSize, weightedGrid, initialPosition, elevationLimits, initialPosition(3));
+[waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, weightedGrid, initialPosition, elevationLimits, initialPosition(3));
 
 % DEEP LEARNING DATA
 terrainInput = reshape(weightedGrid, [size(weightedGrid,1), size(weightedGrid,2), 1]);
@@ -204,7 +204,7 @@ function [plat, lidar] = initializeUAVAndSensors(gridScene, initialPosition, upd
     lidar = uavSensor("Lidar",plat,lidarModel,MountingLocation=[0,0,-1]);
 end
 
-function [waypoints, orientation] = determineWaypoints(gridSize, weightedGrid, initialPosition, elevationLimits, uavElevation)
+function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, weightedGrid, initialPosition, elevationLimits, uavElevation)
     maxNumWaypoints = gridSize(1) * gridSize(2) / 2;
     waypoints = zeros(1, 3, maxNumWaypoints);
     orientation = zeros(1, 3, maxNumWaypoints);
