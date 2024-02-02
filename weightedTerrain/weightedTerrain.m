@@ -49,7 +49,7 @@ targetCellIndex = find(cumulativeProbabilities >= rand(), 1);
 [targetRow, targetCol] = ind2sub([gridSize(1), gridSize(2)], targetCellIndex);
 targetPosition = [targetRow-1, targetCol-1];
 targetVertices = [targetPosition; targetPosition + [1, 0]; targetPosition + [1, 1]; targetPosition + [0, 1]];
-if terrainGrid(targetVertices) == terrainFeatures.Empty
+if featureVertices(targetVertices) == terrainFeatures.Empty
     targetZLimits = [0 2];
 else
     targetZLimits = [1 3];
