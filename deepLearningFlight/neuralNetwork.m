@@ -1,4 +1,20 @@
-% Define the CNN architecture for terrain input
+maxWaypoints = max(cellfun(@(c) numel(c), allWaypointsData)) / 3;
+paddedWaypointsData = zeros(size(allWaypointsData, 1), maxWaypoints * 2);
+
+maxWaypoints = max(cellfun(@(c) numel(c), allWaypointsData));
+paddedWaypointsMatrix = zeros(length(allWaypointsData), maxWaypoints);
+numWaypoints = maxWaypoints / 3;
+
+for i = 1:size(allWaypointsData, 1)
+    currentWaypoints = allWaypointsData{i};
+    for j = 1:length(currentWaypoints)/3
+        paddedWaypointsData(i, (j-1)*2+1:j*2) = currentWaypoints((j-1)*3+1:(j-1)*3+2); % Extract X, Y and ignore Z
+    end
+end
+
+targetData = paddedWaypointsData;
+inputData = {allInputTerrain, allInputPosition};
+
 terrainLayers = [
     imageInputLayer([100, 100, 1], 'Normalization', 'none', 'Name', 'terrain_input')
     convolution2dLayer(3, 8, 'Padding', 'same', 'Name', 'conv1')
@@ -8,36 +24,37 @@ terrainLayers = [
     reluLayer('Name', 'relu2')
     fullyConnectedLayer(64, 'Name', 'fc1_terrain')];
 
-% Define the input layer for UAV's starting position
 positionLayers = [
-    featureInputLayer(2, 'Name', 'position_input')
+    featureInputLayer(3, 'Name', 'position_input')
     fullyConnectedLayer(50, 'Name', 'fc_position')
     reluLayer('Name', 'relu_position')];
 
-% Combine the CNN and position outputs
+flattenTerrain = flattenLayer('Name', 'flatten_terrain');
+concatLayer = concatenationLayer(1, 2, 'Name', 'concat');
+
+fullyConnectedSize = 64 + 50;
 combineLayers = [
-    additionLayer(2, 'Name', 'add')
+    flattenLayer('Name', 'flatten_terrain')
+    concatLayer
     reluLayer('Name', 'relu_combine')
-    fullyConnectedLayer(300, 'Name', 'fc_combine') % Adjust based on the expected output size
-    regressionLayer('Name', 'output')];
+    fullyConnectedLayer(fullyConnectedSize, 'Name', 'fc_combine')
+    fullyConnectedLayer(maxWaypoints * 2, 'Name', 'fc_final')
+    regressionLayer('Name', 'output')
+];
 
 lgraph = layerGraph();
 lgraph = addLayers(lgraph, terrainLayers);
 lgraph = addLayers(lgraph, positionLayers);
 lgraph = addLayers(lgraph, combineLayers);
+lgraph = connectLayers(lgraph, 'fc1_terrain', 'flatten_terrain');
+lgraph = connectLayers(lgraph, 'relu_position', 'concat/in2');
 
-% Connect the layers
-lgraph = connectLayers(lgraph, 'fc1_terrain', 'add/in1');
-lgraph = connectLayers(lgraph, 'relu_position', 'add/in2');
-
-% Compile the network architecture
 layers = lgraph.Layers;
 connections = lgraph.Connections;
 net = createLgraphUsingConnections(layers, connections);
 
-% Training options
 options = trainingOptions('adam', ...
-    'MaxEpochs', 100, ...
+    'MaxEpochs', 1, ... % TODO: CHANGE BACK TO 100
     'MiniBatchSize', 16, ...
     'InitialLearnRate', 0.01, ...
     'GradientThreshold', 1, ...
@@ -45,5 +62,5 @@ options = trainingOptions('adam', ...
     'Verbose', false, ...
     'Plots', 'training-progress');
 
-% Train the network
+% Reformat? inputData and targetData should be stored in a single variable
 [trainedNet, info] = trainNetwork(inputData, targetData, net, options);

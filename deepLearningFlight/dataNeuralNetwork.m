@@ -1,10 +1,13 @@
 initialPosition = [10 10 20];
 gridSize = [100, 100];
-terrainTypes = {'Type1', 'Type2', 'Type3'};
-% terrainTypes = {'Type1'}; % TODO: REMOVE
-numIterations = 10;
-allInputData = [];
-allTargetData = [];
+% terrainTypes = {'Type1', 'Type2', 'Type3'};
+terrainTypes = {'Type1'}; % TODO: REMOVE
+% numIterations = 10; % TODO: REMOVE
+numIterations = 2;
+allInputTerrain = [];
+allInputPosition = [];
+allWaypointsData = [];
+allSimTimeData = [];
 
 for tType = terrainTypes
     selectedTerrainType = tType{1}; % Select the current terrain type
@@ -12,17 +15,21 @@ for tType = terrainTypes
     for iter = 1:numIterations
         fprintf('Running simulation for %s, iteration %d\n', selectedTerrainType, iter);
         initialPosition = [10 10 20];
-        [inputData, targetData] = runSimulation(selectedTerrainType, initialPosition, gridSize);
-        allInputData = [allInputData; {inputData}];
-        allTargetData = [allTargetData; {targetData}];
+        [terrainInput, positionInput, waypointData, simTimeData] = runSimulation(selectedTerrainType, initialPosition, gridSize);
+        % allInputData = [allInputData; {inputData}];
+        % allTargetData = [allTargetData; {targetData}];
+        allInputTerrain = cat(4, allInputTerrain, terrainInput);
+        allInputPosition = [allInputPosition; initialPosition(1:2)];
+        allWaypointsData = [allWaypointsData; {waypointData}];
+        allSimTimeData = [allSimTimeData; simTimeData];
     end
 end
 
-save('UAVFlightSimulationData.mat', 'allInputData', 'allTargetData');
+save('UAVFlightSimulationData.mat', 'allInputTerrain', 'allInputPosition', 'allWaypointsData', 'allSimTimeData');
 
 % --------------------------- HELPER FUNCTIONS ---------------------------
 
-function [inputData, targetData] = runSimulation(selectedTerrainType, initialPosition, gridSize)
+function [terrainInput, positionInput, waypointData, simTimeData] = runSimulation(selectedTerrainType, initialPosition, gridSize)
     % Initialize parameters
     updateRate = 3; % in Hz
     simTime = 1000;
@@ -82,7 +89,7 @@ function [inputData, targetData] = runSimulation(selectedTerrainType, initialPos
             if (~isempty(roiIndices) && targetFound == false)
                 disp('Polygon detected by Lidar!');
                 targetFound = true;
-                simulationTime = gridScene.CurrentTime;
+                simTimeData = gridScene.CurrentTime;
             end
     
             % refreshdata(scatterplot, 'caller')
@@ -101,12 +108,14 @@ function [inputData, targetData] = runSimulation(selectedTerrainType, initialPos
     end
 
     terrainInput = reshape(weightedGrid, [size(weightedGrid,1), size(weightedGrid,2), 1]);
-    positionInput = initialPosition(1:2);
-    inputData = {terrainInput, positionInput};
-    waypointsVector = reshape(waypoints, [], 1);
-    targetData = {waypointsVector, simulationTime};
+    positionInput = initialPosition;
+    waypointData = reshape(waypoints, [], 1);
 
-    fprintf('Simulation time: %16.f, number of waypoints %d\n', simulationTime, waypointIndex);
+    % inputData = {terrainInput, positionInput};
+    % waypointsVector = reshape(waypoints, [], 1);
+    % targetData = {waypointsVector, simulationTime};
+
+    fprintf('Simulation time: %16.f, number of waypoints %d\n', simTimeData, waypointIndex);
 end
 
 function [terrainFeatures, weights, colors, weightedGrid, featureVertices] = terrainSetup(gridSize, selectedTerrainType)
@@ -115,8 +124,17 @@ function [terrainFeatures, weights, colors, weightedGrid, featureVertices] = ter
     colors = struct('Path', [1 0 0], 'River', [0 0 1], 'Tree', [0 1 0], 'Steep', [0 0 0], 'Empty', [1 1 1], 'Target', [0.4940, 0.1840, 0.5560]);
     weightedGrid = weights.Empty * ones(gridSize);
     featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
+    for featureType = fieldnames(featureVertices)'
+        featureName = featureType{1};
+        featureArray = featureVertices.(featureName);
+        
+        for i = 1:length(featureArray)
+            vertices = featureArray{i};
+            mask = poly2mask(vertices(:,1), vertices(:,2), gridSize(1), gridSize(2));
+            weightedGrid(mask) = weights.(featureName);
+        end
+    end
 end
-
 
 function featureVertices = getFeatureVertices(terrainType, gridSize)
     featureVertices = struct();
