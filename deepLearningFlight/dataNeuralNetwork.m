@@ -1,23 +1,19 @@
 initialPosition = [10 10 20];
 gridSize = [100, 100];
-% terrainTypes = {'Type1', 'Type2', 'Type3'};
-terrainTypes = {'Type1'}; % TODO: REMOVE
-% numIterations = 10; % TODO: REMOVE
-numIterations = 2;
+terrainTypes = {'Type1', 'Type2', 'Type3'};
+numIterations = 10;
 allInputTerrain = [];
 allInputPosition = [];
 allWaypointsData = [];
 allSimTimeData = [];
 
 for tType = terrainTypes
-    selectedTerrainType = tType{1}; % Select the current terrain type
+    selectedTerrainType = tType{1};
     
     for iter = 1:numIterations
         fprintf('Running simulation for %s, iteration %d\n', selectedTerrainType, iter);
         initialPosition = [10 10 20];
         [terrainInput, positionInput, waypointData, simTimeData] = runSimulation(selectedTerrainType, initialPosition, gridSize);
-        % allInputData = [allInputData; {inputData}];
-        % allTargetData = [allTargetData; {targetData}];
         allInputTerrain = cat(4, allInputTerrain, terrainInput);
         allInputPosition = [allInputPosition; initialPosition(1:2)];
         allWaypointsData = [allWaypointsData; {waypointData}];
@@ -92,16 +88,19 @@ function [terrainInput, positionInput, waypointData, simTimeData] = runSimulatio
                 simTimeData = gridScene.CurrentTime;
             end
     
-            % refreshdata(scatterplot, 'caller')
+            % refreshdata(scatterplot, 'caller') % COMMENT THIS WHEN NOT PLOTTING LIDAR
             drawnow limitrate
         end
     
-        % figure(2)
-        % show(map3D);
-        % xlim(xlimitsScene);
-        % ylim(ylimitsScene);
-        % zlim(zlimitsScene);
-    
+        figure(2)
+        show(map3D);
+        xlim(xlimitsScene);
+        ylim(ylimitsScene);
+        zlim(zlimitsScene);
+        xlabel('x (m)','FontSize',14);
+        ylabel('y (m)','FontSize',14);
+        zlabel('z (m)','FontSize',14);
+
         move(plat,[waypoints(:,:,ptIdx+1),zeros(1,6),eul2quat(orientation(:,:,ptIdx+1)),zeros(1,3)]);
         advance(gridScene);
         updateSensors(gridScene);
@@ -110,10 +109,6 @@ function [terrainInput, positionInput, waypointData, simTimeData] = runSimulatio
     terrainInput = reshape(weightedGrid, [size(weightedGrid,1), size(weightedGrid,2), 1]);
     positionInput = initialPosition;
     waypointData = reshape(waypoints, [], 1);
-
-    % inputData = {terrainInput, positionInput};
-    % waypointsVector = reshape(waypoints, [], 1);
-    % targetData = {waypointsVector, simulationTime};
 
     fprintf('Simulation time: %16.f, number of waypoints %d\n', simTimeData, waypointIndex);
 end

@@ -1,6 +1,6 @@
 initialPosition = [0 0 20];
 gridSize = [100, 100];
-selectedTerrainType = 'Type2'; % {'Type1', 'Type2', 'Type3'}
+selectedTerrainType = 'Type3'; % {'Type1', 'Type2', 'Type3'}
 updateRate = 3; % in Hz
 simTime = 1000;
 maxRange = 30;
@@ -22,6 +22,7 @@ ax.FontSize = 13;
 plot3(0,0,0,"Marker","diamond","MarkerFaceColor","green","Parent",plotFrames.UAV.BodyFrame);
 xlabel('x (m)');
 ylabel('y (m)');
+zlabel('z (m)');
 xlim(xlimitsScene);
 ylim(ylimitsScene);
 zlim(zlimitsScene);
