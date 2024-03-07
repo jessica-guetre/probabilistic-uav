@@ -1,6 +1,6 @@
 initialPosition = [0 0 20];
-gridSize = [200, 200];
-selectedTerrainType = 'Type2'; % {'Type1', 'Type2', 'Type3'}
+gridSize = [100, 200];
+selectedTerrainType = 'Type3'; % {'Type1', 'Type2', 'Type3'}
 updateRate = 3; % in Hz
 simTime = 1000;
 maxRange = 30;
@@ -28,10 +28,10 @@ ylim(ylimitsScene);
 zlim(zlimitsScene);
 
 function [terrainFeatures, weights, colors, weightedGrid, featureVertices] = terrainSetup(gridSize, selectedTerrainType)
-    terrainFeatures = struct('Path', 1, 'Water', 2, 'Tree', 3, 'Steep', 4, 'Empty', 5);
-    weights = struct('Path', 5, 'Water', 1, 'Tree', 2, 'Steep', 1, 'Empty', 3);
-    colors = struct('Path', [1 0 0], 'Water', [0 0 1], 'Tree', [0 1 0], 'Steep', [0 0 0], 'Empty', [1 1 1], 'Target', [0.4940, 0.1840, 0.5560]);
-    weightedGrid = weights.Empty * ones(gridSize);
+    terrainFeatures = struct('Trail', 1, 'Water', 2, 'Forest', 3, 'Elevation', 4, 'Field', 5);
+    weights = struct('Trail', 5, 'Water', 1, 'Forest', 2, 'Elevation', 1, 'Field', 3);
+    colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667], 'Target', [1 0 0]);
+    weightedGrid = weights.Field * ones(gridSize);
     featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
     for featureType = fieldnames(featureVertices)'
         featureName = featureType{1};
@@ -50,40 +50,40 @@ end
 % 
 %     switch terrainType
 %         case 'Type1'
-%             featureVertices.Path = {[1, 30; gridSize(1), 30; gridSize(1), 35; 1, 35]};
+%             featureVertices.Trail = {[1, 30; gridSize(1), 30; gridSize(1), 35; 1, 35]};
 %             featureVertices.Water = {
 %                 [40, 1; 45, 1; 45, 30; 40, 30],
 %                 [40, 35; 45, 35; 45, 90; 40, 90]
 %             };
-%             featureVertices.Tree = {
+%             featureVertices.Forest = {
 %                 [20, 1; 40, 1; 40, 10; 20, 10],
 %                 [45, 1; gridSize(1), 1; gridSize(1), 10; 45, 10],
 %                 [60, 10; gridSize(1), 10; gridSize(1), 20; 60, 20]
 %             };
-%             featureVertices.Steep = {
+%             featureVertices.Elevation = {
 %                 [1, 98; gridSize(1), 98; gridSize(1), gridSize(2); 1, gridSize(2)],
 %                 [10, 90; gridSize(1), 90; gridSize(1), 98; 10, 98]
 %             };
 %         case 'Type2'
-%             featureVertices.Path = {[1, 20; gridSize(1), 20; gridSize(1), 25; 1, 25]};
+%             featureVertices.Trail = {[1, 20; gridSize(1), 20; gridSize(1), 25; 1, 25]};
 %             featureVertices.Water = {[1, 50; gridSize(1), 50; gridSize(1), 60; 1, 60]};
-%             featureVertices.Tree = {
+%             featureVertices.Forest = {
 %                 [20, 1; gridSize(1), 1; gridSize(1), 20; 20, 20],
 %                 [20, 25; gridSize(1), 25; gridSize(1), 45; 20, 45]
 %             };
-%             featureVertices.Steep = {[10, 90; gridSize(1), 90; gridSize(1), 98; 10, 98]};
+%             featureVertices.Elevation = {[10, 90; gridSize(1), 90; gridSize(1), 98; 10, 98]};
 %         case 'Type3'
-%             featureVertices.Path = {[10, 1; 20, 1; 20, gridSize(2); 10, gridSize(2)]};
+%             featureVertices.Trail = {[10, 1; 20, 1; 20, gridSize(2); 10, gridSize(2)]};
 %             featureVertices.Water = {[50, 1; 60, 1; 60, 30; 80, 30; 80, 70; 70, 70; 70, gridSize(2); 50, gridSize(2)]};
-%             featureVertices.Tree = {[60, 1; gridSize(1), 1; gridSize(1), 30; 60, 30]};
-%             featureVertices.Steep = {[70, 70; gridSize(1), 70; gridSize(1), gridSize(2); 70, gridSize(2)]};
+%             featureVertices.Forest = {[60, 1; gridSize(1), 1; gridSize(1), 30; 60, 30]};
+%             featureVertices.Elevation = {[70, 70; gridSize(1), 70; gridSize(1), gridSize(2); 70, gridSize(2)]};
 %     end
 % end
 
 function gridScene = createUAVScenario(updateRate, simTime, gridSize)
     gridScene = uavScenario("UpdateRate", updateRate, "StopTime", simTime, "HistoryBufferSize", 200);
     gridScene.addInertialFrame("ENU", "MAP", trvec2tform([1 0 0]));
-    addMesh(gridScene, "polygon", {[0 0; gridSize(1) 0; gridSize(1) gridSize(2); 0 gridSize(2)], [-5 0]}, 0.651*ones(1, 3));
+    addMesh(gridScene, "polygon", {[0 0; gridSize(1) 0; gridSize(1) gridSize(2); 0 gridSize(2)], [-5 0]}, [0.4667 0.6745 0.1882]);
 end
 
 function addTerrainMeshes(gridScene, featureVertices, colors)
