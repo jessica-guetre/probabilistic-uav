@@ -1,19 +1,27 @@
-function [gridScene, probabilityGrid, roi] = sceneSetup(updateRate, simTime, gridSize, selectedTerrainType, targetPosition)
+updateRate = 1;
+simTime = 60;
+gridSize = [100, 100];
+selectedTerrainType = 'Type1';
+targetPosition = [50, 50];
+featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
+[gridScene, ~, roi] = setupScene(updateRate, simTime, gridSize, selectedTerrainType, targetPosition);
+
+figure(1);
+imagesc(probabilityGrid);
+colorbar;
+axis equal;
+title('Feature Probability Heatmap');
+xlabel('x (m)');
+ylabel('y (m)');
+
+function [gridScene, probabilityGrid, roi] = setupScene(updateRate, simTime, gridSize, selectedTerrainType, targetPosition)
+% function [gridScene, probabilityGrid, roi] = sceneSetup(updateRate, simTime, gridSize, selectedTerrainType, targetPosition)
     gridScene = createUAVScenario(updateRate, simTime, gridSize);
 
-    probabilities = struct('Trail', 5, 'Water', 1, 'Forest', 2, 'Elevation', 1, 'Field', 3);
-    colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667]);
-    probabilityGrid = probabilities.Field * ones(gridSize);
     featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
-    for featureType = fieldnames(featureVertices)'
-        featureName = featureType{1};
-        featureArray = featureVertices.(featureName);
-        for i = 1:length(featureArray)
-            vertices = featureArray{i};
-            mask = poly2mask(vertices(:,1), vertices(:,2), gridSize(1), gridSize(2));
-            probabilityGrid(mask) = probabilities.(featureName);
-        end
-    end
+    colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667]);
+    probabilities = struct('Trail', [0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [0, 1.0], 'Elevation', [0, 2.0]);
+    probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities);
 
     for featureType = fieldnames(featureVertices)'
         featureArray = featureVertices.(featureType{1});
@@ -109,4 +117,46 @@ function featureVertices = getFeatureVertices(terrainType, gridSize)
             };
             featureVertices.Elevation = {[gridSize(1) - 40*scaleFactorX, 0; gridSize(1) - 20*scaleFactorX, 0; gridSize(1) - 20*scaleFactorX, 10*scaleFactorY; gridSize(1) - 40*scaleFactorX, 10*scaleFactorY]};
     end
+end
+
+function probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities)
+    probabilityGrid = zeros(gridSize);
+
+    for featureType = fieldnames(featureVertices)'
+        probabilityInfo = probabilities.((featureType{1}));
+
+        binaryMask = zeros(gridSize);
+        for j = 1:length(featureVertices.((featureType{1})))
+            vertices = featureVertices.(featureType{1}){j};
+            mask = poly2mask(vertices(:,1), vertices(:,2), gridSize(1), gridSize(2));
+            binaryMask(mask) = 1;
+        end
+
+        distanceTransform = bwdist(binaryMask);
+
+        for k = 1:size(probabilityInfo, 1) - 1
+            lowerBoundDistance = probabilityInfo(k, 1);
+            upperBoundDistance = probabilityInfo(k+1, 1);
+            lowerBoundProbability = probabilityInfo(k, 2);
+            upperBoundProbability = probabilityInfo(k+1, 2);
+            
+            indices = distanceTransform >= lowerBoundDistance & distanceTransform < upperBoundDistance;
+            
+            slope = (upperBoundProbability - lowerBoundProbability) / (upperBoundDistance - lowerBoundDistance);
+            probabilityGrid(indices) = probabilityGrid(indices) + (lowerBoundProbability + slope * (distanceTransform(indices) - lowerBoundDistance));
+        end
+    end
+    
+    for featureType = fieldnames(featureVertices)'
+        probabilityInfo = probabilities.((featureType{1}));
+        binaryMask = zeros(gridSize);
+        for j = 1:length(featureVertices.(featureType{1}))
+            vertices = featureVertices.(featureType{1}){j};
+            mask = poly2mask(vertices(:,1), vertices(:,2), gridSize(1), gridSize(2));
+            binaryMask(mask) = 1;
+        end
+        probabilityGrid(binaryMask == 1) = probabilityInfo(1, 2);
+    end
+    
+    probabilityGrid = probabilityGrid / sum(probabilityGrid, 'all');
 end
