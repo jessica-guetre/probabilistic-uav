@@ -7,25 +7,50 @@ allInputPosition = [];
 allWaypointsData = [];
 allSimTimeData = [];
 
-for tType = terrainTypes
-    selectedTerrainType = tType{1};
+weights = rand(1, 3); % distance weight, probability grid weight, bias
+learningRate = -0.05;
+numEpochs = 10;
+bestSim = [Inf weights]; % time, weights
+
+for epoch = 1:numEpochs
+    % fprintf('Epoch %d\n', epoch);
+
+    allSimTimeData = [];
     
-    for iter = 1:numIterations
-        fprintf('Running simulation for %s, iteration %d\n', selectedTerrainType, iter);
-        initialPosition = [10 10 20];
-        [terrainInput, positionInput, waypointData, simTimeData] = runSimulation(selectedTerrainType, initialPosition, gridSize);
-        allInputTerrain = cat(4, allInputTerrain, terrainInput);
-        allInputPosition = [allInputPosition; initialPosition(1:2)];
-        allWaypointsData = [allWaypointsData; {waypointData}];
-        allSimTimeData = [allSimTimeData; simTimeData];
+    for tType = terrainTypes
+        selectedTerrainType = tType{1};
+        
+        for iter = 1:numIterations
+            initialPosition = [10 10 20];
+            [terrainInput, positionInput, waypointData, simTimeData] = runSimulation(selectedTerrainType, initialPosition, gridSize, weights);
+            allSimTimeData = [allSimTimeData; simTimeData];
+        end
+        fprintf('Terrain %s, Average Sim Time %.2f\n', selectedTerrainType, mean(simTimeData));
     end
+
+    avgSimTime = mean(allSimTimeData);
+    weightUpdates = rand(1, 3);
+    oldWeights = weights;
+
+    if avgSimTime < bestSim(1)
+        bestSim = [avgSimTime weights];
+    else
+        learningRate = learningRate * -1; % Change sign of learning rate if worse
+        weights = bestSim(2:4); % Use best weights as starting point
+    end
+
+    for i = 1:length(weights)
+        weights(i) = weights(i) + learningRate * weightUpdates(i);
+    end
+
+    fprintf('Epoch: %d, AvgSimTime: %.2f, BestSimTime: %.2f, New Weights: %.5f %.5f %.5f, Old Weights: %.5f %.5f %.5f, Weight Updates: %.5f %.5f %.5f\n', epoch, avgSimTime, bestSim(1), weights.', oldWeights.', weightUpdates.');
 end
 
-save('UAVFlightSimulationData.mat', 'allInputTerrain', 'allInputPosition', 'allWaypointsData', 'allSimTimeData');
+% save('UAVFlightSimulationData.mat', 'allInputTerrain', 'allInputPosition', 'allWaypointsData', 'allSimTimeData', 'successDistanceWeight', 'successTerrainWeight');
 
 % --------------------------- HELPER FUNCTIONS ---------------------------
 
-function [terrainInput, positionInput, waypointData, simTimeData] = runSimulation(selectedTerrainType, initialPosition, gridSize)
+function [terrainInput, positionInput, waypointData, simTimeData] = runSimulation(selectedTerrainType, initialPosition, gridSize, weights)
     % Initialize parameters
     updateRate = 3; % in Hz
     simTime = 1000;
@@ -37,13 +62,14 @@ function [terrainInput, positionInput, waypointData, simTimeData] = runSimulatio
     ylimitsScene = [0 100];
     zlimitsScene = [-5 40];
 
-    [terrainFeatures, weights, colors, weightedGrid, featureVertices] = terrainSetup(gridSize, selectedTerrainType);
+    [terrainFeatures, probabilities, colors, probabilityGrid, featureVertices] = terrainSetup(gridSize, selectedTerrainType);
     gridScene = createUAVScenario(updateRate, simTime, gridSize);
     addTerrainMeshes(gridScene, featureVertices, colors);
-    [targetPosition, roi] = createTarget(gridScene, weightedGrid, colors, gridSize);
+    [targetPosition, roi] = createTarget(gridScene, probabilityGrid, colors, gridSize);
     [plat, lidar] = initializeUAVAndSensors(gridScene, initialPosition, updateRate, maxRange, azimuthResolution, elevationLimits, elevationResolution);
-    [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, weightedGrid, initialPosition, elevationLimits, initialPosition(3));
+    [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, initialPosition(3), weights);
 
+    % COMMENT / UNCOMMENT TO SEE SIMULATION
     % figure(1)
     % [ax, plotFrames] = show3D(gridScene);
     % plot3(0,0,0,"Marker","diamond","MarkerFaceColor","green","Parent",plotFrames.UAV.BodyFrame);
@@ -83,7 +109,7 @@ function [terrainInput, positionInput, waypointData, simTimeData] = runSimulatio
             roiIndices = findPointsInROI(tempPtc,roi);
     
             if (~isempty(roiIndices) && targetFound == false)
-                disp('Polygon detected by Lidar!');
+                % disp('Polygon detected by Lidar!');
                 targetFound = true;
                 simTimeData = gridScene.CurrentTime;
             end
@@ -92,32 +118,33 @@ function [terrainInput, positionInput, waypointData, simTimeData] = runSimulatio
             drawnow limitrate
         end
     
-        figure(2)
-        show(map3D);
-        xlim(xlimitsScene);
-        ylim(ylimitsScene);
-        zlim(zlimitsScene);
-        xlabel('x (m)','FontSize',14);
-        ylabel('y (m)','FontSize',14);
-        zlabel('z (m)','FontSize',14);
+        % COMMENT / UNCOMMENT TO SEE SIMULATION
+        % figure(2)
+        % show(map3D);
+        % xlim(xlimitsScene);
+        % ylim(ylimitsScene);
+        % zlim(zlimitsScene);
+        % xlabel('x (m)','FontSize',14);
+        % ylabel('y (m)','FontSize',14);
+        % zlabel('z (m)','FontSize',14);
 
         move(plat,[waypoints(:,:,ptIdx+1),zeros(1,6),eul2quat(orientation(:,:,ptIdx+1)),zeros(1,3)]);
         advance(gridScene);
         updateSensors(gridScene);
     end
 
-    terrainInput = reshape(weightedGrid, [size(weightedGrid,1), size(weightedGrid,2), 1]);
+    terrainInput = reshape(probabilityGrid, [size(probabilityGrid,1), size(probabilityGrid,2), 1]);
     positionInput = initialPosition;
     waypointData = reshape(waypoints, [], 1);
 
-    fprintf('Simulation time: %16.f, number of waypoints %d\n', simTimeData, waypointIndex);
+    % fprintf('Simulation time: %16.f, number of waypoints %d\n', simTimeData, waypointIndex);
 end
 
-function [terrainFeatures, weights, colors, weightedGrid, featureVertices] = terrainSetup(gridSize, selectedTerrainType)
+function [terrainFeatures, probabilities, colors, probabilityGrid, featureVertices] = terrainSetup(gridSize, selectedTerrainType)
     terrainFeatures = struct('Path', 1, 'River', 2, 'Tree', 3, 'Steep', 4, 'Empty', 5);
-    weights = struct('Path', 5, 'River', 1, 'Tree', 2, 'Steep', 1, 'Empty', 3);
+    probabilities = struct('Path', 1, 'River', 0.2, 'Tree', 0.4, 'Steep', 0.2, 'Empty', 0.6);
     colors = struct('Path', [1 0 0], 'River', [0 0 1], 'Tree', [0 1 0], 'Steep', [0 0 0], 'Empty', [1 1 1], 'Target', [0.4940, 0.1840, 0.5560]);
-    weightedGrid = weights.Empty * ones(gridSize);
+    probabilityGrid = probabilities.Empty * ones(gridSize);
     featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
     for featureType = fieldnames(featureVertices)'
         featureName = featureType{1};
@@ -126,7 +153,7 @@ function [terrainFeatures, weights, colors, weightedGrid, featureVertices] = ter
         for i = 1:length(featureArray)
             vertices = featureArray{i};
             mask = poly2mask(vertices(:,1), vertices(:,2), gridSize(1), gridSize(2));
-            weightedGrid(mask) = weights.(featureName);
+            probabilityGrid(mask) = probabilities.(featureName);
         end
     end
 end
@@ -187,8 +214,8 @@ function addTerrainMeshes(gridScene, featureVertices, colors)
     end
 end
 
-function [targetPosition, roi] = createTarget(gridScene, weightedGrid, colors, gridSize)
-    probabilities = weightedGrid / sum(weightedGrid, 'all');
+function [targetPosition, roi] = createTarget(gridScene, probabilityGrid, colors, gridSize)
+    probabilities = probabilityGrid / sum(probabilityGrid, 'all');
     cumulativeProbabilities = cumsum(probabilities(:));
     targetCellIndex = find(cumulativeProbabilities >= rand(), 1);
     [targetRow, targetCol] = ind2sub([gridSize(1), gridSize(2)], targetCellIndex);
@@ -207,7 +234,7 @@ function [plat, lidar] = initializeUAVAndSensors(gridScene, initialPosition, upd
     lidar = uavSensor("Lidar",plat,lidarModel,MountingLocation=[0,0,-1]);
 end
 
-function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, weightedGrid, initialPosition, elevationLimits, uavElevation)
+function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, uavElevation, weights)
     maxNumWaypoints = gridSize(1) * gridSize(2) / 2;
     waypoints = zeros(1, 3, maxNumWaypoints);
     orientation = zeros(1, 3, maxNumWaypoints);
@@ -217,32 +244,32 @@ function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, 
     waypointIndex = 1;
     waypoints(1, :, waypointIndex) = currentPosition;
     orientation(1, :, waypointIndex) = [0, 0, 0];
-    successDistanceWeight = 1;
-    successTerrainWeight = 1;
+    maxDistance = sqrt((gridSize(1)-1)^2 + (gridSize(2)-1)^2);
+
 
     while any(visited(:) == 0)
         successGrid = zeros(size(gridSize));
         for x = 1:gridSize(1)
             for y = 1:gridSize(2)
                 if visited(x, y) == 0
-                    distanceSum = abs(currentPosition(1) - x) + abs(currentPosition(2) - y);
-                    terrainWeight = weightedGrid(x, y);
-                    successGrid(x, y) = (1/(distanceSum * successDistanceWeight)) * terrainWeight * successTerrainWeight;
+                    distance = (abs(currentPosition(1) - x) + abs(currentPosition(2) - y)) / maxDistance;
+                    terrainWeight = probabilityGrid(x, y);
+                    successGrid(x, y) = (1/distance * weights(1)) + terrainWeight * weights(2) + weights(3);
                 end
             end
         end
     
         maxSuccess = max(successGrid(:));
         [successX, successY] = find(successGrid == maxSuccess);
-        minDistance = inf;
-        successPosition = [successX(1), successY(1), uavElevation]; % Default to the first one
+        shortestDistance = inf;
+        successPosition = [successX(1), successY(1), uavElevation];
     
         for i = 1:length(successX)
-            successDistance = abs(successX(i) - currentPosition(1)) + abs(successY(i) - currentPosition(2));
-            if successDistance < minDistance
-                minDistance = successDistance;
+            distanceToCell = abs(successX(i) - currentPosition(1)) + abs(successY(i) - currentPosition(2));
+            if distanceToCell < shortestDistance
+                shortestDistance = distanceToCell;
                 successPosition = [successX(i), successY(i), 20];
-            elseif successDistance == minDistance
+            elseif distanceToCell == shortestDistance
                 break;
             end
         end
@@ -289,7 +316,6 @@ function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, 
         % disp(['Number of cells not visited yet: ', num2str(numNotVisited)]);
     end
 
-    % Resize waypoints and orientation to the actual number of waypoints found
     waypoints = waypoints(:,:,1:waypointIndex);
     orientation = orientation(:,:,1:waypointIndex);
 end

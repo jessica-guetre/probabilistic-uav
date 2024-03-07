@@ -11,8 +11,8 @@ xlimitsScene = [0 gridSize(1)];
 ylimitsScene = [0 gridSize(2)];
 zlimitsScene = [-5 40];
 
-[terrainFeatures, weights, colors, weightedGrid, featureVertices] = terrainSetup(gridSize, selectedTerrainType);
 gridScene = createUAVScenario(updateRate, simTime, gridSize);
+[terrainFeatures, weights, colors, weightedGrid, featureVertices] = terrainSetup(gridSize, selectedTerrainType);
 addTerrainMeshes(gridScene, featureVertices, colors);
 [targetPosition, roi] = createTarget(gridScene, weightedGrid, colors, gridSize);
 [plat, lidar] = initializeUAVAndSensors(gridScene, initialPosition, updateRate, maxRange, azimuthResolution, elevationLimits, elevationResolution);
