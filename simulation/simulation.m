@@ -1,6 +1,5 @@
 % --------------------------- CONSTANTS ---------------------------
 initialPosition = [10 10 20];
-updateRate = 3; % in Hz
 simTime = 1000;
 elevationLimits = [-90 -80];
 uavElevation = initialPosition(3);
@@ -11,7 +10,7 @@ probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 2
 % --------------------------- ITERATION ---------------------------
 terrainTypes = {'Type1', 'Type2', 'Type3', 'Type4', 'Type5'};
 numIterations = 5;
-numEpochs = 50;
+numEpochs = 10;
 learningRate = -0.1;
 bestSim = [Inf weightVals(1)]; % time, weights
 % weightVals = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0];
@@ -19,24 +18,14 @@ targetPositions = [20, 20; 80, 60; 30, 50; 60, 40; 50, 20; 20, 40; 60, 60; 20, 7
 weight = 1;
 
 % --------------------------- EPOCHS ---------------------------
+createFigure = false;
 for epoch = 1:numEpochs
     allWaypointIndices = [];
 
     for tType = terrainTypes
-        [featureVertices, probabilityGrid] = getScene(tType{1}, gridSize);
-        % figure(1); % For Feature Probability Heatmap
-        % imagesc(probabilityGrid);
-        % colorbar;
-        % axis equal;
-        % title('Feature Probability Heatmap');
-        % set(gca, 'YDir', 'normal');
-        % xlim([1 gridSize(1)]);
-        % ylim([1 gridSize(2)]);
-        % xlabel('x (m)');
-        % ylabel('y (m)');
-
+        [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, createFigure);
         for iter = 1:numIterations
-            waypointIndex = getWaypoints(tType{1}, gridSize, probabilityGrid, initialPosition, elevationLimits, uavElevation, weight, targetPositions(iter,:));
+            waypointIndex = getWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, weight, targetPositions(iter,:));
             % fprintf('Terrain %s, WayPointIndices %d, Target Position %d %d\n', tType{1}, waypointIndex, targetPositions(iter,1), targetPositions(iter,2));
             allWaypointIndices = [allWaypointIndices; waypointIndex];
         end
