@@ -118,8 +118,6 @@ function probabilityGrid = terrainProbabilities(featureVertices, gridSize, proba
 
     % Set the probabilities for the cells around the feature
     for featureType = fieldnames(featureVertices)'
-        fprintf('featureType = %s\n', featureType{1});
-
         probabilityInfo = probabilities.(featureType{1});
 
         binaryMask = zeros(gridSize);
@@ -136,8 +134,6 @@ function probabilityGrid = terrainProbabilities(featureVertices, gridSize, proba
             upperBoundDistance = probabilityInfo(k+1, 1);
             lowerBoundProbability = probabilityInfo(k, 2);
             upperBoundProbability = probabilityInfo(k+1, 2);
-            fprintf('k = %d\nlowerBoundDistance = %f\nupperBoundDistance = %f\nlowerBoundProbability = %f\nupperBoundProbability = %f\n', k, lowerBoundDistance, upperBoundDistance, lowerBoundProbability, upperBoundProbability);
-
             indices = distanceTransform >= lowerBoundDistance & distanceTransform < upperBoundDistance;
             
             slope = (upperBoundProbability - lowerBoundProbability) / (upperBoundDistance - lowerBoundDistance);
