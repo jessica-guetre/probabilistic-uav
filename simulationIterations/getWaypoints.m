@@ -1,54 +1,14 @@
-function waypointIndex = getWaypoints(selectedTerrainType, gridSize, probabilityGrid, initialPosition, elevationLimits, uavElevation, weight, targetPosition)
+function [waypoints, orientation, waypointIndex] = getWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, uavElevation, weight)
     maxNumWaypoints = gridSize(1) * gridSize(2) / 2;
     waypoints = zeros(1, 3, maxNumWaypoints);
     orientation = zeros(1, 3, maxNumWaypoints);
-    currentPosition = initialPosition;
+    currentPosition = [initialPosition(1), initialPosition(2), uavElevation];
     visited = zeros(gridSize);
     visited(currentPosition(1), currentPosition(2)) = 1;
     waypointIndex = 1;
     waypoints(1, :, waypointIndex) = currentPosition;
     orientation(1, :, waypointIndex) = [0, 0, 0];
 
-    % targetPositions = [30, 30];
-    % targetVertices = [targetPosition; targetPosition + [2, 0]; targetPosition + [2, 2]; targetPosition + [0, 2]];
-    % featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
-    % figure(2); % Feature Map
-    % hold on;
-    % axis equal;
-    % title('Feature Map');
-    % xlim([1 gridSize(1)]);
-    % ylim([1 gridSize(2)]);
-    % xlabel('x (m)');
-    % ylabel('y (m)');
-    % title('Map of Features');
-    % colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667], 'Field', [0.4667 0.6745 0.1882], 'Target', [1 0 0]);
-    % patch('Vertices', [1, 1; gridSize(1), 1; gridSize(1), gridSize(2); 1, gridSize(2)], 'Faces', [1, 2, 3, 4], 'FaceColor', colors.('Field'), 'EdgeColor', 'none');
-    % legendEntries = {'Field'};
-    % colorsForLegend = colors.('Field');
-    % for featureType = fieldnames(featureVertices)'
-    %     featureName = featureType{1};
-    %     featureArray = featureVertices.(featureName);
-    %     color = colors.(featureName);
-    %     for i = 1:length(featureArray)
-    %         vertices = featureArray{i};
-    %         patch('Vertices', vertices, 'Faces', 1:size(vertices, 1), 'FaceColor', color, 'EdgeColor', 'none');
-    %     end
-    %     legendEntries{end+1} = featureName;
-    %     colorsForLegend(end+1, :) = color;
-    % end
-    % patch('Vertices', targetVertices, 'Faces', [1, 2, 3, 4], 'FaceColor', colors.Target, 'EdgeColor', 'none');
-    % legendEntries{end + 1} = 'Target';
-    % colorsForLegend(end + 1, :) = colors.Target;
-    % for i = 1:length(legendEntries)
-    %     h(i) = patch(NaN, NaN, colorsForLegend(i,:), 'EdgeColor', 'none');
-    % end
-    % legend(h, legendEntries);
-    % hold off;
-
-    % figure(3); % For Success Grid Heatmap
-    % figure(4); % For Proximity Grid Heatmap
-
-    targetFound = false;
     while any(visited(:) == 0)
         distanceGrid = zeros(gridSize);
         successGrid = zeros(gridSize);
@@ -58,9 +18,9 @@ function waypointIndex = getWaypoints(selectedTerrainType, gridSize, probability
                 distanceGrid(x, y) = sqrt((currentPosition(1) - x)^2 + (currentPosition(2) - y)^2);
             end
         end
-    
+
         distanceGrid = 1 - (distanceGrid - min(distanceGrid(:))) / max(max(distanceGrid(:)) - min(distanceGrid(:)), 0.01); % Normalize and invert
-    
+
         for x = 1:gridSize(1)
             for y = 1:gridSize(2)
                 if visited(x, y) == 0
@@ -119,54 +79,23 @@ function waypointIndex = getWaypoints(selectedTerrainType, gridSize, probability
         end
         currentPosition = successPosition;
         visited = updateVisitedFromLidar(proposedPath, visited, gridSize, elevationLimits, uavElevation);
-
-        % fprintf('Number of cells not visited yet: %d\n', sum(sum(visited == 0)));
-        for x = targetPosition(1):(targetPosition(1) + 2)
-            for y = targetPosition(2):(targetPosition(2) + 2)
-                % fprintf('x %d y %d visited(x,y) %d\n', x, y, visited(x,y));
-                if visited(x, y) == 1
-                    targetFound = true;
-                end
-            end
-        end
-    
-        % % Update Success Grid Heatmap
-        % figure(3);
-        % imagesc(successGrid);
-        % colorbar;
-        % axis equal;
-        % title('Success Grid Heatmap');
-        % set(gca, 'YDir', 'normal');
-        % xlabel('x (m)');
-        % ylabel('y (m)');
-        % drawnow;
-
-        % % Update Proximity Grid Heatmap
-        % figure(4);
-        % imagesc(distanceGrid);
-        % colorbar;
-        % axis equal;
-        % title('Proximity Grid Heatmap');
-        % set(gca, 'YDir', 'normal');
-        % xlabel('x (m)');
-        % ylabel('y (m)');
-        % drawnow; % Force display update
-    
-        if targetFound == true
-            % fprintf('Target found within %d waypoints.\n', waypointIndex);
-            break;
-        end
     end
+
+    waypoints = waypoints(:,:,1:waypointIndex);
+    orientation = orientation(:,:,1:waypointIndex);
 end
 
 function visited = updateVisitedFromLidar(proposedPath, visited, gridSize, elevationLimits, uavElevation)
     elevationRange = abs(deg2rad(elevationLimits(1) - elevationLimits(2)));
     maxHorizontalRange = tan(elevationRange) * abs(uavElevation);
+    
     for pathIdx = 1:size(proposedPath, 1)
         currentPathPosition = proposedPath(pathIdx, :);
+        
         for x = 1:gridSize(1)
             for y = 1:gridSize(2)
                 horizontalDistance = sqrt((currentPathPosition(1) - (x-1))^2 + (currentPathPosition(2) - (y-1))^2);
+
                 if horizontalDistance <= maxHorizontalRange
                     visited(x, y) = 1;
                 end

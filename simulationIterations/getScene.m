@@ -1,8 +1,38 @@
-function [featureVertices, probabilityGrid] = getScene(selectedTerrainType, gridSize)
+function [gridScene, probabilityGrid, roi] = getScene(updateRate, simTime, gridSize, selectedTerrainType, targetPosition)
+    gridScene = createUAVScenario(updateRate, simTime, gridSize);
+
     featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
     colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667]);
     probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [-1, 0.5; 0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [-1, 1.5], 'Elevation', [-1, 2.0]);
     probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities);
+
+    for featureType = fieldnames(featureVertices)'
+        featureArray = featureVertices.(featureType{1});
+        for i = 1:length(featureArray)
+            vertices = featureArray{i};
+            color = colors.(featureType{1});
+            addMesh(gridScene, "polygon", {vertices, [0 1]}, color);
+        end
+    end
+
+    roi = createTarget(gridScene, probabilityGrid, targetPosition);
+end
+
+function gridScene = createUAVScenario(updateRate, simTime, gridSize)
+    gridScene = uavScenario("UpdateRate", updateRate, "StopTime", simTime, "HistoryBufferSize", 200);
+    gridScene.addInertialFrame("ENU", "MAP", trvec2tform([1 0 0]));
+    addMesh(gridScene, "polygon", {[0 0; gridSize(1) 0; gridSize(1) gridSize(2); 0 gridSize(2)], [-5 0]}, [0.4667 0.6745 0.1882]);
+end
+
+function roi = createTarget(gridScene, probabilityGrid, position)
+    probabilities = probabilityGrid / sum(probabilityGrid, 'all');
+    cumulativeProbabilities = cumsum(probabilities(:));
+    targetCellIndex = find(cumulativeProbabilities >= rand(), 1);
+    targetPosition = position;
+    targetVertices = [targetPosition; targetPosition + [1, 0]; targetPosition + [1, 1]; targetPosition + [0, 1]];
+    targetZLimits = [0 3];
+    addMesh(gridScene, "polygon", {targetVertices, targetZLimits}, [1 0 0]);
+    roi = [targetPosition(1), targetPosition(1) + 2, targetPosition(2), targetPosition(2) + 2, targetZLimits(1), targetZLimits(2)];
 end
 
 function featureVertices = getFeatureVertices(terrainType, gridSize)
