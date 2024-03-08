@@ -159,6 +159,8 @@ while any(visited(:) == 0)
     axis equal;
     title('Success Grid Heatmap');
     set(gca, 'YDir', 'normal');
+    xlim([1 gridSize(1)]);
+    ylim([1 gridSize(2)]);
     xlabel('x (m)');
     ylabel('y (m)');
     drawnow; % Force display update
@@ -170,6 +172,8 @@ while any(visited(:) == 0)
     axis equal;
     title('Proximity Grid Heatmap');
     set(gca, 'YDir', 'normal');
+    xlim([1 gridSize(1)]);
+    ylim([1 gridSize(2)]);
     xlabel('x (m)');
     ylabel('y (m)');
     drawnow; % Force display update

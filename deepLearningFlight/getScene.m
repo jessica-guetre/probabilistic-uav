@@ -1,4 +1,4 @@
-function [gridScene, probabilityGrid, roi] = sceneSetup(updateRate, simTime, gridSize, selectedTerrainType, targetPosition)
+function [gridScene, probabilityGrid, roi] = getScene(updateRate, simTime, gridSize, selectedTerrainType, targetPosition)
     gridScene = createUAVScenario(updateRate, simTime, gridSize);
 
     featureVertices = getFeatureVertices(selectedTerrainType, gridSize);

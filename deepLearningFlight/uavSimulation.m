@@ -50,7 +50,6 @@ end
 % save('UAVFlightSimulationData.mat', 'allInputTerrain', 'allInputPosition', 'allWaypointsData', 'allSimTimeData', 'successDistanceWeight', 'successTerrainWeight');
 
 % --------------------------- HELPER FUNCTIONS ---------------------------
-
 function [terrainInput, positionInput, waypointData, simTimeData] = runSimulation(selectedTerrainType, initialPosition, gridSize, weight, targetPosition)
     % Initialize parameters
     updateRate = 3; % in Hz
