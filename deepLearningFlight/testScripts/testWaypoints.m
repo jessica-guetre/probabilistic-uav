@@ -23,6 +23,55 @@ waypoints(1, :, waypointIndex) = currentPosition;
 orientation(1, :, waypointIndex) = [0, 0, 0];
 maxDistance = sqrt((gridSize(1)-1)^2 + (gridSize(2)-1)^2);
 
+figure(1); % For Feature Probability Heatmap
+imagesc(probabilityGrid);
+colorbar;
+axis equal;
+title('Feature Probability Heatmap');
+set(gca, 'YDir', 'normal');
+xlim([1 gridSize(1)]);
+ylim([1 gridSize(2)]);
+xlabel('x (m)');
+ylabel('y (m)');
+figure(2); % For Success Grid Heatmap
+figure(3); % For Proximity Grid Heatmap
+figure(4); % Feature Map
+hold on;
+axis equal;
+title('Feature Map');
+xlim([1 gridSize(1)]);
+ylim([1 gridSize(2)]);
+xlabel('x (m)');
+ylabel('y (m)');
+title('Map of Features');
+colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667], 'Field', [0.4667 0.6745 0.1882], 'Target', [1 0 0]);
+% FIELD
+patch('Vertices', [1, 1; gridSize(1), 1; gridSize(1), gridSize(2); 1, gridSize(2)], 'Faces', [1, 2, 3, 4], 'FaceColor', colors.('Field'), 'EdgeColor', 'none');
+legendEntries = {'Field'};
+colorsForLegend = colors.('Field');
+% TARGET
+patch('Vertices', targetVertices, 'Faces', 1:size(targetVertices, 1), 'FaceColor', colors.('Target'), 'EdgeColor', 'none');
+legendEntries{end + 1} = 'Target';
+colorsForLegend(end + 1, :) = colors.Target;
+% FEATURES
+for featureType = fieldnames(featureVertices)'
+    featureName = featureType{1};
+    featureArray = featureVertices.(featureName);
+    color = colors.(featureName);
+    for i = 1:length(featureArray)
+        vertices = featureArray{i};
+        patch('Vertices', vertices, 'Faces', 1:size(vertices, 1), 'FaceColor', color, 'EdgeColor', 'none');
+    end
+    legendEntries{end+1} = featureName;
+    colorsForLegend(end+1, :) = color;
+end
+% LEGEND
+for i = 1:length(legendEntries)
+    h(i) = patch(NaN, NaN, colorsForLegend(i,:), 'EdgeColor', 'none');
+end
+legend(h, legendEntries);
+hold off;
+
 targetFound = false;
 while any(visited(:) == 0)
     distanceGrid = zeros(gridSize);
@@ -103,6 +152,28 @@ while any(visited(:) == 0)
         end
     end
 
+    % Update Success Grid Heatmap
+    figure(2);
+    imagesc(successGrid);
+    colorbar;
+    axis equal;
+    title('Success Grid Heatmap');
+    set(gca, 'YDir', 'normal');
+    xlabel('x (m)');
+    ylabel('y (m)');
+    drawnow; % Force display update
+
+    % Update Proximity Grid Heatmap
+    figure(3);
+    imagesc(distanceGrid);
+    colorbar;
+    axis equal;
+    title('Proximity Grid Heatmap');
+    set(gca, 'YDir', 'normal');
+    xlabel('x (m)');
+    ylabel('y (m)');
+    drawnow; % Force display update
+
     if targetFound
         fprintf('Target found within %d waypoints.\n', waypointIndex);
         break;
@@ -111,81 +182,6 @@ end
 
 waypoints = waypoints(:,:,1:waypointIndex);
 orientation = orientation(:,:,1:waypointIndex);
-
-% Plot the heatmaps
-% Feature Probability Heatmap
-figure(1);
-imagesc(probabilityGrid);
-colorbar;
-axis equal;
-title('Feature Probability Heatmap');
-set(gca, 'YDir', 'normal');
-xlim([1 gridSize(1)]);
-ylim([1 gridSize(2)]);
-xlabel('x (m)');
-ylabel('y (m)');
-
-% Success Grid Heatmap
-figure(2);
-imagesc(successGrid);
-colorbar;
-axis equal;
-title('Success Grid Heatmap');
-set(gca, 'YDir', 'normal');
-xlim([1 gridSize(1)]);
-ylim([1 gridSize(2)]);
-xlabel('x (m)');
-ylabel('y (m)');
-
-% Distance Grid Heatmap
-figure(3);
-imagesc(distanceGrid);
-colorbar;
-axis equal;
-title('Proximity Grid Heatmap');
-set(gca, 'YDir', 'normal');
-xlim([1 gridSize(1)]);
-ylim([1 gridSize(2)]);
-xlabel('x (m)');
-ylabel('y (m)');
-
-% Feature Map
-figure(4);
-hold on;
-axis equal;
-title('Feature Map');
-xlim([1 gridSize(1)]);
-ylim([1 gridSize(2)]);
-xlabel('x (m)');
-ylabel('y (m)');
-title('Map of Features');
-colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667], 'Field', [0.4667 0.6745 0.1882], 'Target', [1 0 0]);
-% FIELD
-patch('Vertices', [1, 1; gridSize(1), 1; gridSize(1), gridSize(2); 1, gridSize(2)], 'Faces', [1, 2, 3, 4], 'FaceColor', colors.('Field'), 'EdgeColor', 'none');
-legendEntries = {'Field'};
-colorsForLegend = colors.('Field');
-% TARGET
-patch('Vertices', targetVertices, 'Faces', 1:size(targetVertices, 1), 'FaceColor', colors.('Target'), 'EdgeColor', 'none');
-legendEntries{end + 1} = 'Target';
-colorsForLegend(end + 1, :) = colors.Target;
-% FEATURES
-for featureType = fieldnames(featureVertices)'
-    featureName = featureType{1};
-    featureArray = featureVertices.(featureName);
-    color = colors.(featureName);
-    for i = 1:length(featureArray)
-        vertices = featureArray{i};
-        patch('Vertices', vertices, 'Faces', 1:size(vertices, 1), 'FaceColor', color, 'EdgeColor', 'none');
-    end
-    legendEntries{end+1} = featureName;
-    colorsForLegend(end+1, :) = color;
-end
-% LEGEND
-for i = 1:length(legendEntries)
-    h(i) = patch(NaN, NaN, colorsForLegend(i,:), 'EdgeColor', 'none');
-end
-legend(h, legendEntries);
-hold off;
 
 function visited = updateVisitedFromLidar(proposedPath, visited, gridSize, elevationLimits, uavElevation)
     elevationRange = abs(deg2rad(elevationLimits(1) - elevationLimits(2)));
