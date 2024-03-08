@@ -3,7 +3,7 @@ function [gridScene, probabilityGrid, roi] = sceneSetup(updateRate, simTime, gri
 
     featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
     colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667]);
-    probabilities = struct('Trail', [0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [0, 1.0], 'Elevation', [0, 2.0]);
+    probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [-1, 0.5; 0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [-1, 1.0], 'Elevation', [-1, 2.0]);
     probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities);
 
     for featureType = fieldnames(featureVertices)'
@@ -104,7 +104,22 @@ end
 function probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities)
     probabilityGrid = zeros(gridSize);
 
+    % Set the probability for the cell containing the feature itself
     for featureType = fieldnames(featureVertices)'
+        probabilityInfo = probabilities.(featureType{1});
+        binaryMask = zeros(gridSize);
+        for j = 1:length(featureVertices.(featureType{1}))
+            vertices = featureVertices.(featureType{1}){j};
+            mask = poly2mask(vertices(:,1), vertices(:,2), gridSize(1), gridSize(2));
+            binaryMask(mask) = 1;
+        end
+        probabilityGrid(binaryMask == 1) = probabilityInfo(1, 2);
+    end
+
+    % Set the probabilities for the cells around the feature
+    for featureType = fieldnames(featureVertices)'
+        fprintf('featureType = %s\n', featureType{1});
+
         probabilityInfo = probabilities.(featureType{1});
 
         binaryMask = zeros(gridSize);
@@ -116,28 +131,18 @@ function probabilityGrid = terrainProbabilities(featureVertices, gridSize, proba
 
         distanceTransform = bwdist(binaryMask);
 
-        for k = 1:size(probabilityInfo, 1) - 1
+        for k = 2:size(probabilityInfo, 1) - 1
             lowerBoundDistance = probabilityInfo(k, 1);
             upperBoundDistance = probabilityInfo(k+1, 1);
             lowerBoundProbability = probabilityInfo(k, 2);
             upperBoundProbability = probabilityInfo(k+1, 2);
-            
+            fprintf('k = %d\nlowerBoundDistance = %f\nupperBoundDistance = %f\nlowerBoundProbability = %f\nupperBoundProbability = %f\n', k, lowerBoundDistance, upperBoundDistance, lowerBoundProbability, upperBoundProbability);
+
             indices = distanceTransform >= lowerBoundDistance & distanceTransform < upperBoundDistance;
             
             slope = (upperBoundProbability - lowerBoundProbability) / (upperBoundDistance - lowerBoundDistance);
             probabilityGrid(indices) = probabilityGrid(indices) + (lowerBoundProbability + slope * (distanceTransform(indices) - lowerBoundDistance));
         end
-    end
-
-    for featureType = fieldnames(featureVertices)'
-        probabilityInfo = probabilities.(featureType{1});
-        binaryMask = zeros(gridSize);
-        for j = 1:length(featureVertices.(featureType{1}))
-            vertices = featureVertices.(featureType{1}){j};
-            mask = poly2mask(vertices(:,1), vertices(:,2), gridSize(1), gridSize(2));
-            binaryMask(mask) = 1;
-        end
-        probabilityGrid(binaryMask == 1) = probabilityInfo(1, 2);
     end
     
     probabilityGrid = (probabilityGrid - min(probabilityGrid(:))) / (max(probabilityGrid(:)) - min(probabilityGrid(:)));

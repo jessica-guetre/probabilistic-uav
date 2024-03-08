@@ -18,9 +18,9 @@ function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, 
                 distanceGrid(x, y) = sqrt((currentPosition(1) - x)^2 + (currentPosition(2) - y)^2);
             end
         end
-        
-        distanceGrid = (distanceGrid - min(distanceGrid(:))) / max(max(distanceGrid(:)) - min(distanceGrid(:)), 0.01);
-    
+
+        distanceGrid = 1 - (distanceGrid - min(distanceGrid(:))) / max(max(distanceGrid(:)) - min(distanceGrid(:)), 0.01); % Normalize and invert
+
         for x = 1:gridSize(1)
             for y = 1:gridSize(2)
                 if visited(x, y) == 0
