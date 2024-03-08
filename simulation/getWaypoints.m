@@ -1,4 +1,4 @@
-function waypointIndex = getWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, weight, targetPosition)
+function waypointIndex = getWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, weight, targetRoi)
     uavElevation = initialPosition(3);
     maxNumWaypoints = gridSize(1) * gridSize(2) / 2;
     waypoints = zeros(1, 3, maxNumWaypoints);
@@ -10,8 +10,8 @@ function waypointIndex = getWaypoints(gridSize, probabilityGrid, initialPosition
     waypoints(1, :, waypointIndex) = currentPosition;
     orientation(1, :, waypointIndex) = [0, 0, 0];
 
-    % figure(1); % For Success Grid Heatmap
-    % figure(2); % For Proximity Grid Heatmap
+    % figure(1); % Success Grid Heatmap
+    % figure(2); % Proximity Grid Heatmap
 
     targetFound = false;
     while any(visited(:) == 0)
@@ -85,8 +85,8 @@ function waypointIndex = getWaypoints(gridSize, probabilityGrid, initialPosition
         currentPosition = successPosition;
         visited = updateVisitedFromLidar(proposedPath, visited, gridSize, elevationLimits, uavElevation);
 
-        for x = targetPosition(1):(targetPosition(1) + 2)
-            for y = targetPosition(2):(targetPosition(2) + 2)
+        for x = targetRoi(1):targetRoi(2)
+            for y = targetRoi(3):targetRoi(4)
                 if visited(x, y) == 1
                     targetFound = true;
                 end

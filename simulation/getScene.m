@@ -1,4 +1,4 @@
-function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, createFigure, targetPosition)
+function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, createFigure, targetRoi)
     terrainTypes = {'Type1', 'Type2', 'Type3', 'Type4', 'Type5', 'Type6', 'Type7', 'Type8', 'Type9', 'Type10'};
     colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667], 'Field', [0.4667 0.6745 0.1882], 'Target', [1 0 0]);
     probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [-1, 0.5; 0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [-1, 1.5], 'Elevation', [-1, 2.0]);
@@ -39,7 +39,7 @@ function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, cre
         end
 
         if nargin == 4
-            targetVertices = [targetPosition; targetPosition + [2, 0]; targetPosition + [2, 2]; targetPosition + [0, 2]];
+            targetVertices = [targetRoi(1), targetRoi(3); targetRoi(4), targetRoi(3); targetRoi(4), targetRoi(2); targetRoi(1), targetRoi(2)];
             patch('Vertices', targetVertices, 'Faces', [1, 2, 3, 4], 'FaceColor', colors.Target, 'EdgeColor', 'none');
             legendEntries{end + 1} = 'Target';
             colorsForLegend = [colorsForLegend; colors.Target];
