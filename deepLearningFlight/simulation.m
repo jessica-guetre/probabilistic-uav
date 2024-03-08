@@ -63,9 +63,9 @@ function [terrainInput, positionInput, waypointData, simTimeData] = runSimulatio
     ylimitsScene = [0 gridSize(2)];
     zlimitsScene = [-5 40];
 
-    [gridScene, probabilityGrid, roi] = sceneSetup(updateRate, simTime, gridSize, selectedTerrainType, targetPosition);
-    [plat, lidar] = uavSetup(gridScene, initialPosition, updateRate, maxRange, azimuthResolution, elevationLimits, elevationResolution);
-    [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, initialPosition(3), weight);
+    [gridScene, probabilityGrid, roi] = getScene(updateRate, simTime, gridSize, selectedTerrainType, targetPosition);
+    [plat, lidar] = getUav(gridScene, initialPosition, updateRate, maxRange, azimuthResolution, elevationLimits, elevationResolution);
+    [waypoints, orientation, waypointIndex] = getWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, initialPosition(3), weight);
 
     % COMMENT / UNCOMMENT TO SEE SIMULATION
     figure(1)

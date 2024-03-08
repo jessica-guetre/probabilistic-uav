@@ -1,4 +1,4 @@
-function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, uavElevation, weight)
+function [waypoints, orientation, waypointIndex] = getWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, uavElevation, weight)
     maxNumWaypoints = gridSize(1) * gridSize(2) / 2;
     waypoints = zeros(1, 3, maxNumWaypoints);
     orientation = zeros(1, 3, maxNumWaypoints);
@@ -84,7 +84,6 @@ function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, 
     waypoints = waypoints(:,:,1:waypointIndex);
     orientation = orientation(:,:,1:waypointIndex);
 end
-
 
 function visited = updateVisitedFromLidar(proposedPath, visited, gridSize, elevationLimits, uavElevation)
     elevationRange = abs(deg2rad(elevationLimits(1) - elevationLimits(2)));

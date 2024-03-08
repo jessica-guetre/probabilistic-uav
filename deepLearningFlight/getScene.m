@@ -3,7 +3,7 @@ function [gridScene, probabilityGrid, roi] = sceneSetup(updateRate, simTime, gri
 
     featureVertices = getFeatureVertices(selectedTerrainType, gridSize);
     colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667]);
-    probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [-1, 0.5; 0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [-1, 1.0], 'Elevation', [-1, 2.0]);
+    probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [-1, 0.5; 0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [-1, 1.5], 'Elevation', [-1, 2.0]);
     probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities);
 
     for featureType = fieldnames(featureVertices)'
@@ -102,7 +102,7 @@ function featureVertices = getFeatureVertices(terrainType, gridSize)
 end
 
 function probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities)
-    probabilityGrid = zeros(gridSize);
+    probabilityGrid = ones(gridSize);
 
     % Set the probability for the cell containing the feature itself
     for featureType = fieldnames(featureVertices)'
@@ -140,6 +140,6 @@ function probabilityGrid = terrainProbabilities(featureVertices, gridSize, proba
             probabilityGrid(indices) = probabilityGrid(indices) + (lowerBoundProbability + slope * (distanceTransform(indices) - lowerBoundDistance));
         end
     end
-    
+
     probabilityGrid = (probabilityGrid - min(probabilityGrid(:))) / (max(probabilityGrid(:)) - min(probabilityGrid(:)));
 end
