@@ -8,24 +8,30 @@ function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, 
     waypointIndex = 1;
     waypoints(1, :, waypointIndex) = currentPosition;
     orientation(1, :, waypointIndex) = [0, 0, 0];
-    maxDistance = sqrt((gridSize(1)-1)^2 + (gridSize(2)-1)^2);
-
 
     while any(visited(:) == 0)
-        successGrid = zeros(size(gridSize));
+        distanceGrid = zeros(gridSize);
+        successGrid = zeros(gridSize);
+    
+        for x = 1:gridSize(1)
+            for y = 1:gridSize(2)
+                distanceGrid(x, y) = sqrt((currentPosition(1) - x)^2 + (currentPosition(2) - y)^2);
+            end
+        end
+        
+        distanceGrid = (distanceGrid - min(distanceGrid(:))) / max(max(distanceGrid(:)) - min(distanceGrid(:)), 0.01);
+    
         for x = 1:gridSize(1)
             for y = 1:gridSize(2)
                 if visited(x, y) == 0
-                    distance = (abs(currentPosition(1) - x) + abs(currentPosition(2) - y)) / maxDistance;
-                    terrainWeight = probabilityGrid(x, y);
-                    successGrid(x, y) = (1/distance * weight) + terrainWeight;
-                    % successGrid(x, y) = (1/distance * weights(1)) + terrainWeight + weights(2);
+                    successGrid(x, y) = distanceGrid(x, y) * weight + probabilityGrid(x, y);
                 end
             end
         end
     
+        successGrid = (successGrid - min(successGrid(:))) / max(max(successGrid(:)) - min(successGrid(:)), 0.01);
         maxSuccess = max(successGrid(:));
-        [successX, successY] = find(successGrid == maxSuccess);
+        [successX, successY] = find(successGrid == maxSuccess, 1, 'first');
         shortestDistance = inf;
         successPosition = [successX(1), successY(1), uavElevation];
     
@@ -39,9 +45,6 @@ function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, 
             end
         end
     
-        % disp('successPosition: ');
-        % disp(successPosition);
-
         if currentPosition(1) <= successPosition(1)
             xPositions = (currentPosition(1)+1):1:successPosition(1);
         else
@@ -74,16 +77,14 @@ function [waypoints, orientation, waypointIndex] = determineWaypoints(gridSize, 
                 orientation(1, :, waypointIndex) = orientation(1, :, waypointIndex - 1);
             end
         end
-    
         currentPosition = successPosition;
         visited = updateVisitedFromLidar(proposedPath, visited, gridSize, elevationLimits, uavElevation);
-        % numNotVisited = sum(sum(visited == 0));
-        % disp(['Number of cells not visited yet: ', num2str(numNotVisited)]);
     end
 
     waypoints = waypoints(:,:,1:waypointIndex);
     orientation = orientation(:,:,1:waypointIndex);
 end
+
 
 function visited = updateVisitedFromLidar(proposedPath, visited, gridSize, elevationLimits, uavElevation)
     elevationRange = abs(deg2rad(elevationLimits(1) - elevationLimits(2)));
