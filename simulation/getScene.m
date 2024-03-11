@@ -39,7 +39,7 @@ function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, cre
         end
 
         if nargin == 4
-            targetVertices = [targetRoi(1), targetRoi(3); targetRoi(4), targetRoi(3); targetRoi(4), targetRoi(2); targetRoi(1), targetRoi(2)];
+            targetVertices = [targetRoi(1), targetRoi(3); targetRoi(2), targetRoi(3); targetRoi(2), targetRoi(4); targetRoi(1), targetRoi(4)];
             patch('Vertices', targetVertices, 'Faces', [1, 2, 3, 4], 'FaceColor', colors.Target, 'EdgeColor', 'none');
             legendEntries{end + 1} = 'Target';
             colorsForLegend = [colorsForLegend; colors.Target];
@@ -200,7 +200,7 @@ function probabilityGrid = terrainProbabilities(featureVertices, gridSize, proba
             lowerBoundProbability = probabilityInfo(k, 2);
             upperBoundProbability = probabilityInfo(k+1, 2);
             indices = distanceTransform >= lowerBoundDistance & distanceTransform < upperBoundDistance;
-            
+
             slope = (upperBoundProbability - lowerBoundProbability) / (upperBoundDistance - lowerBoundDistance);
             probabilityGrid(indices) = probabilityGrid(indices) + (lowerBoundProbability + slope * (distanceTransform(indices) - lowerBoundDistance));
         end
