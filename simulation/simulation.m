@@ -10,16 +10,20 @@ probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 2
 terrainNum = 10;
 
 % --------------------------- ITERATION -----------------------------------
-numEpochs = 100; % number of epochs for the training process
-numIterations = 100;
-learningRate = 0.1; % learning rate for weight adjustment
-weightVals = unique(cat(2, linspace(0, 1, round(numEpochs/2)), linspace(1, 5, round(numEpochs/2)) + 1));
-bestWeight = weightVals(1); % best weight found
-bestPerformance = Inf; % initialize best performance as worst case
-% performance = zeros(numEpochs,2); % weight, mean num waypoints
-% weightVals = zeros(numEpochs, 1);
+numEpochs = 50; % number of epochs for the training process
+numIterations = 500;
+learningRate = 0.05; % learning rate for weight adjustment
+weightVals = unique(cat(2, linspace(0, 1, numEpochs - round(numEpochs/2)), linspace(1, 5, round(numEpochs/2))));
 featureMapFigure = false;
 successDistanceFigure = false;
+
+simulationData = struct;
+simulationData.bestPerformance = Inf; % Keep track of the best performance
+simulationData.bestWeight = 1;
+simulationData.epochs(1).weight = 1;
+weightUpdates = rand;
+
+filename = 'simulation2.mat';
 
 % --------------------------- TARGET AND UAV POSITIONS --------------------
 targetRois = zeros(terrainNum, numIterations, 6);
@@ -35,29 +39,39 @@ uavInitialPositions = [randi(gridSize(2), numIterations, 1), randi(gridSize(1), 
 % --------------------------- EPOCHS --------------------------------------
 for epoch = 1:numEpochs
     weight = weightVals(epoch);
-    allNumWaypoints = [];
+    % weight = simulationData.epochs(epoch).weight;
+    allNumWaypoints = zeros(terrainNum, numIterations);
 
     for terrain = 1:terrainNum
+        [featureVertices, probabilityGrid] = getScene(terrain, gridSize, featureMapFigure, squeeze(targetRois(terrain, iter, :)));
         for iter = 1:numIterations
-            [featureVertices, probabilityGrid] = getScene(terrain, gridSize, featureMapFigure, targetRois(terrain, iter, :));
-            numWaypoints = getWaypoints(gridSize, probabilityGrid, uavInitialPositions(iter, :), elevationLimits, weight, targetRois(terrain, iter, :), successDistanceFigure);
-            allNumWaypoints = [allNumWaypoints; waypointIndex];
+            allNumWaypoints(terrain, iter) = getWaypoints(gridSize, probabilityGrid, uavInitialPositions(iter, :), elevationLimits, weight, squeeze(targetRois(terrain, iter, :)), successDistanceFigure);
         end
     end
 
-    avgWaypoints = mean(allNumWaypoints);
-    if avgWaypoints < bestPerformance
-        bestPerformance = avgWaypoints;
-        bestWeight = weight;
+    % if epoch < numEpochs
+    %     if epoch > 1
+    %         if avgWaypoints > simulationData.bestPerformance
+    %             learningRate = -learningRate;
+    %         end
+    %         % weightUpdate = avgWaypoints - simulationData.bestPerformance;
+    %     end
+    %     weightUpdates = rand;
+    %     simulationData.epochs(epoch + 1).weight = simulationData.bestWeight + learningRate * weightUpdates;
+    % end
+
+    avgWaypoints = mean(allNumWaypoints(:)); % flatten array to calculate average
+    if avgWaypoints < simulationData.bestPerformance
+        simulationData.bestPerformance = avgWaypoints;
+        simulationData.bestWeight = weight;
     end
 
-    fprintf('Epoch: %d, Avg Waypoints: %.2f, Weight: %.5f, Best Num Waypoints: %.2f, Best Weight: %.5f\n', epoch, avgWaypoints, weight, bestPerformance, bestWeight);
+    simulationData.epochs(epoch).weight = weight; % store data for each epoch in the structure
+    simulationData.epochs(epoch).avgWaypoints = avgWaypoints;
+    simulationData.epochs(epoch).allNumWaypoints = allNumWaypoints;
 
-    % if epoch > 1 && avgWaypoints > lastAvgWaypoints
-    %     learningRate = -learningRate; % reverse direction if worse performance
-    % end
-    % if epoch < numEpochs
-    %     weightVals(epoch + 1) = weightVals(epoch) + learningRate; % adjust weight for next epoch
-    % end
-    % lastAvgWaypoints = avgWaypoints;
+    fprintf('Epoch: %d, Avg Waypoints: %.2f, Weight: %.5f, Best Num Waypoints: %.2f, Best Weight: %.5f\n', epoch, avgWaypoints, weight, simulationData.bestPerformance, simulationData.bestWeight);
 end
+
+% Save the accumulated data at the end of all epochs
+save(filename, 'simulationData');
