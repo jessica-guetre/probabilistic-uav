@@ -1,19 +1,22 @@
-function waypointIndex = getWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, weight, targetRoi)
-    uavElevation = initialPosition(3);
+function waypointIndex = getWaypoints(gridSize, probabilityGrid, uavInitialPosition, elevationLimits, weight, targetRoi, createFigure)
+    uavElevation = uavInitialPosition(3);
     maxNumWaypoints = gridSize(1) * gridSize(2) / 2;
     waypoints = zeros(1, 3, maxNumWaypoints);
     orientation = zeros(1, 3, maxNumWaypoints);
-    currentPosition = initialPosition;
+    currentPosition = uavInitialPosition;
     visited = zeros(gridSize);
     visited(currentPosition(1), currentPosition(2)) = 1;
     waypointIndex = 1;
     waypoints(1, :, waypointIndex) = currentPosition;
     orientation(1, :, waypointIndex) = [0, 0, 0];
 
-    % figure(1); % Success Grid Heatmap
-    % figure(2); % Proximity Grid Heatmap
-
+    if createFigure
+        figure(1); % success grid heatmap
+        figure(2); % proximity grid heatmap
+    end
     targetFound = false;
+    % fprintf("targtRois = %d %d %d %d %d %d\n", targetRoi(1), targetRoi(2), targetRoi(3), targetRoi(4), targetRoi(5), targetRoi(6));
+
     while any(visited(:) == 0)
         distanceGrid = zeros(gridSize);
         successGrid = zeros(gridSize);
@@ -93,28 +96,29 @@ function waypointIndex = getWaypoints(gridSize, probabilityGrid, initialPosition
             end
         end
     
-        % % Update Success Grid Heatmap
-        % figure(1);
-        % imagesc(successGrid);
-        % colorbar;
-        % axis equal;
-        % title('Success Grid Heatmap');
-        % set(gca, 'YDir', 'normal');
-        % xlabel('x (m)');
-        % ylabel('y (m)');
-        % drawnow;
 
-        % % Update Proximity Grid Heatmap
-        % figure(2);
-        % imagesc(distanceGrid);
-        % colorbar;
-        % axis equal;
-        % title('Proximity Grid Heatmap');
-        % set(gca, 'YDir', 'normal');
-        % xlabel('x (m)');
-        % ylabel('y (m)');
-        % drawnow; % Force display update
+        if createFigure
+            figure(1); % update success heatmap
+            imagesc(successGrid);
+            colorbar;
+            axis equal;
+            title('Success Grid Heatmap');
+            set(gca, 'YDir', 'normal');
+            xlabel('x (m)');
+            ylabel('y (m)');
+            drawnow;
     
+            figure(2); % update proximity heatmap
+            imagesc(distanceGrid);
+            colorbar;
+            axis equal;
+            title('Proximity Grid Heatmap');
+            set(gca, 'YDir', 'normal');
+            xlabel('x (m)');
+            ylabel('y (m)');
+            drawnow; % force display update
+        end
+
         if targetFound == true
             break;
         end
