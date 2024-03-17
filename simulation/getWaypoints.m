@@ -1,21 +1,27 @@
-function waypointIndex = getWaypoints(gridSize, probabilityGrid, initialPosition, elevationLimits, weight, targetRoi, createFigure)
+function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, initialPosition, elevationLimits, weight, targetRoi, createFigure)
     uavElevation = initialPosition(3);
     maxNumWaypoints = gridSize(1) * gridSize(2) / 2;
     waypoints = zeros(1, 3, maxNumWaypoints);
-    orientation = zeros(1, 3, maxNumWaypoints);
+    orientation = zeros(1, 4, maxNumWaypoints);
     currentPosition = initialPosition; % Ensure currentPosition is [y, x]
     visited = zeros(gridSize); % gridSize should be [rows (y), columns (x)]
     waypointIndex = 1;
     targetFound = false;
+    lidarRange = 10;
+
+    direction = [1, 0];
+    segmentLength = 0;
 
     if createFigure
         figure(1); % Success Grid Heatmap
         figure(2); % Proximity Grid Heatmap
     end
-    
+
+    visited = updateVisitedFromLidar(currentPosition, visited, gridSize, lidarRange);
+
     while any(visited(:) == 0) && ~targetFound
         [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize, probabilityGrid, visited, weight);
-        successPosition = findNextSuccessPosition(successGrid, currentPosition, uavElevation);
+        successPosition = findNextPositionProbabilistic(currentPosition, lidarRange, successGrid);
         proposedPath = generatePath(currentPosition, successPosition, uavElevation);
 
         for i = 1:size(proposedPath, 1)
@@ -23,14 +29,14 @@ function waypointIndex = getWaypoints(gridSize, probabilityGrid, initialPosition
             waypoints(1, :, waypointIndex) = proposedPath(i, :);
             orientation(1, :, waypointIndex) = calculateOrientation(proposedPath, i);
             currentPosition = [proposedPath(i, 2), proposedPath(i, 1)];
-            visited = updateVisitedFromLidar(currentPosition, visited, gridSize, elevationLimits, uavElevation);
+            visited = updateVisitedFromLidar(currentPosition, visited, gridSize, lidarRange);
     
             if checkTargetFound(visited, targetRoi)
                 targetFound = true;
                 break; % Exit loop once target is found
             end
         end
-        
+
         if createFigure
             updateHeatmaps(successGrid, distanceGrid, gridSize);
         end
@@ -63,21 +69,41 @@ function [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize,
 end
 
 
-function successPosition = findNextSuccessPosition(successGrid, currentPosition, uavElevation)
+function successPosition = findNextPositionProbabilistic(currentPosition, lidarRange, successGrid)
     maxSuccess = max(successGrid(:));
-    [successY, successX] = find(successGrid == maxSuccess, 1, 'first'); % Note the switch to [successY, successX]
+    [successY, successX] = find(successGrid == maxSuccess, 10, 'first'); % Note the switch to [successY, successX]
     shortestDistance = inf;
-    successPosition = [successY, successX, uavElevation]; % Adjusted to [y, x, z] format
+    successPosition = [successY, successX]; % Adjusted to [y, x, z] format
 
     for i = 1:length(successX)
         distanceToCell = sqrt((successY(i) - currentPosition(1))^2 + (successX(i) - currentPosition(2))^2);
         if distanceToCell < shortestDistance
             shortestDistance = distanceToCell;
-            successPosition = [successY(i), successX(i), uavElevation]; % Corrected to [y, x, z] format
+            successPosition = [successY(i), successX(i)]; % Corrected to [y, x, z] format
         elseif distanceToCell == shortestDistance
             break;
         end
     end
+end
+
+function [successPosition, newDirection, newSegmentLength] = findNextPositionSpiral(currentPosition, lidarRange, lastDirection, lastSegmentLength)
+    if isequal(lastDirection, [1, 0])
+        newDirection = [0, 1];
+        newSegmentLength = lastSegmentLength + lidarRange;
+    elseif isequal(lastDirection, [0, 1])
+        newDirection = [-1, 0];
+        newSegmentLength = lastSegmentLength;
+    elseif isequal(lastDirection, [-1, 0])
+        newDirection = [0, -1];
+        newSegmentLength = lastSegmentLength + lidarRange;
+    else
+        newDirection = [1, 0];
+        newSegmentLength = lastSegmentLength;
+    end
+
+    successY = currentPosition(1) + newDirection(1) * newSegmentLength;
+    successX = currentPosition(2) + newDirection(2) * newSegmentLength;
+    successPosition = [successY, successX];
 end
 
 function proposedPath = generatePath(currentPosition, successPosition, uavElevation)
@@ -92,12 +118,17 @@ end
 
 function orientation = calculateOrientation(proposedPath, i)
     if i == 1 % first waypoint, orientation unchanged
-        orientation = [0, 0, 0];
+        orientation = [1, 0, 0, 0]; % No rotation quaternion
     else
         deltaY = proposedPath(i, 1) - proposedPath(i-1, 1);
         deltaX = proposedPath(i, 2) - proposedPath(i-1, 2);
-        yaw = atan2(deltaY, deltaX);
-        orientation = [yaw, 0, 0];
+        yaw = atan2(deltaY, deltaX); % Calculate yaw angle
+        % Convert yaw angle to quaternion
+        w = cos(yaw / 2);
+        x = 0; % No rotation around x-axis
+        y = 0; % No rotation around y-axis
+        z = sin(yaw / 2); % Rotation around z-axis
+        orientation = [w, x, y, z];
     end
 end
 
@@ -134,15 +165,18 @@ function updateHeatmaps(successGrid, distanceGrid, gridSize)
     drawnow; % force display update
 end
 
-function visited = updateVisitedFromLidar(currentPosition, visited, gridSize, elevationLimits, uavElevation)
-    elevationRange = abs(deg2rad(elevationLimits(1) - elevationLimits(2)));
-    maxHorizontalRange = tan(elevationRange) * abs(uavElevation);
+function visited = updateVisitedFromLidar(currentPosition, visited, gridSize, lidarRange)
     for y = 1:gridSize(2)
         for x = 1:gridSize(1)
             horizontalDistance = sqrt((currentPosition(2) - x)^2 + (currentPosition(1) - y)^2); % Corrected
-            if horizontalDistance <= maxHorizontalRange
+            if horizontalDistance <= lidarRange
                 visited(y, x) = 1;
             end
         end
     end
+end
+
+function lidarRange = maxLidarRange(elevationLimits, uavElevation)
+    elevationRange = abs(deg2rad(elevationLimits(1) - elevationLimits(2)));
+    lidarRange = tan(elevationRange) * abs(uavElevation);
 end
