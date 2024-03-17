@@ -20,6 +20,7 @@ function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, cre
         hold on;
         axis equal;
         title('Feature Map');
+        set(gca, 'YDir', 'normal');
         xlim([1 gridSize(1)]); xlabel('x (m)');
         ylim([1 gridSize(2)]); ylabel('y (m)');
         title('Map of Features');
@@ -39,7 +40,7 @@ function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, cre
         end
 
         if nargin == 4
-            targetVertices = [targetRoi(1), targetRoi(3); targetRoi(2), targetRoi(3); targetRoi(2), targetRoi(4); targetRoi(1), targetRoi(4)];
+            targetVertices = [targetRoi(3), targetRoi(1); targetRoi(4), targetRoi(1); targetRoi(4), targetRoi(2); targetRoi(3), targetRoi(2)];
             patch('Vertices', targetVertices, 'Faces', [1, 2, 3, 4], 'FaceColor', colors.Target, 'EdgeColor', 'none');
             legendEntries{end + 1} = 'Target';
             colorsForLegend = [colorsForLegend; colors.Target];

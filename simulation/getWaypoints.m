@@ -63,9 +63,9 @@ function [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize,
 
     distanceGrid = 1 - (distanceGrid - min(distanceGrid(:))) / max(max(distanceGrid(:)) - min(distanceGrid(:)), 0.01); % normalize and invert
     successGrid = zeros(gridSize);
-    for y = 1:gridSize(1) % Adjusted to iterate over rows for successGrid
-        for x = 1:gridSize(2) % Adjusted to iterate over columns for successGrid
-            if visited(y, x) == 0 % Adjusted to check visited using y-x indexing
+    for y = 1:gridSize(1)
+        for x = 1:gridSize(2)
+            if visited(y, x) == 0 
                 successGrid(y, x) = distanceGrid(y, x) * weight + probabilityGrid(y, x); % Adjusted to use y-x indexing
             end
         end
@@ -142,8 +142,8 @@ end
 
 function targetFound = checkTargetFound(visited, targetRoi)
     targetFound = false;
-    for x = targetRoi(1):targetRoi(2)
-        for y = targetRoi(3):targetRoi(4)
+    for y = targetRoi(1):targetRoi(2)
+        for x = targetRoi(3):targetRoi(4)
             if visited(y, x) == 1
                 targetFound = true;
             end

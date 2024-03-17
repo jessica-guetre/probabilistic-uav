@@ -11,12 +11,12 @@ terrainNum = 1;
 flightType = 'spiral'; % 'probabilistic', 'spiral', 'parallelLine'
 
 % --------------------------- ITERATION -----------------------------------
-numEpochs = 1; % number of epochs for the training process
-numIterations = 1;
+numEpochs = 10; % number of epochs for the training process
+numIterations = 200;
 learningRate = 0.05; % learning rate for weight adjustment
 weightVals = unique(cat(2, linspace(0, 1, numEpochs - round(numEpochs/2)), linspace(1, 5, round(numEpochs/2) + 1)));
-featureMapFigure = true;
-successDistanceFigure = true;
+featureMapFigure = false;
+successDistanceFigure = false;
 
 simulationData = struct;
 simulationData.bestPerformance = Inf; % Keep track of the best performance
@@ -41,14 +41,16 @@ else
     uavInitialPositions = [repmat(round(gridSize(2)/2), numIterations, 1), repmat(round(gridSize(1)/2), numIterations, 1), repmat(uavElevation, numIterations, 1)];
 end
 
+uavInitialPositions = [repmat(round(gridSize(2)/2), numIterations, 1), repmat(round(gridSize(1)/2), numIterations, 1), repmat(uavElevation, numIterations, 1)];
+
 % --------------------------- EPOCHS --------------------------------------
 for epoch = 1:numEpochs
     weight = weightVals(epoch);
     allNumWaypoints = zeros(terrainNum, numIterations);
 
     for terrain = 1:terrainNum
-        [featureVertices, probabilityGrid] = getScene(terrain, gridSize, featureMapFigure, squeeze(targetRois(terrain, iter, :)));
         for iter = 1:numIterations
+            [featureVertices, probabilityGrid] = getScene(terrain, gridSize, featureMapFigure, squeeze(targetRois(terrain, iter, :)));
             allNumWaypoints(terrain, iter) = getWaypoints(flightType, gridSize, probabilityGrid, uavInitialPositions(iter, :), elevationLimits, weight, squeeze(targetRois(terrain, iter, :)), successDistanceFigure);
         end
     end

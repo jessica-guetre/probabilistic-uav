@@ -1,4 +1,5 @@
 function roi = getTarget(probabilityGrid)
+    probabilityGrid = probabilityGrid.^3; % increase weighting of probability
     probabilities = probabilityGrid / sum(probabilityGrid, 'all'); % normalize to sum to 1
     cumulativeProbabilities = cumsum(probabilities(:)); % converto to cumulative sum array
     randValue = rand(); % generate a random value and find the first index where the cumulative
