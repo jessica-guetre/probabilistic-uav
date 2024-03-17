@@ -21,7 +21,12 @@ function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, ini
 
     while any(visited(:) == 0) && ~targetFound
         [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize, probabilityGrid, visited, weight);
-        successPosition = findNextPositionProbabilistic(currentPosition, lidarRange, successGrid);
+        if strcmp(flightType,'probabilistic')
+            successPosition = findNextPositionProbabilistic(currentPosition, lidarRange, successGrid);
+        else
+            [successPosition, direction, segmentLength] = findNextPositionSpiral(currentPosition, lidarRange, direction, segmentLength);
+        end
+
         proposedPath = generatePath(currentPosition, successPosition, uavElevation);
 
         for i = 1:size(proposedPath, 1)
@@ -38,10 +43,11 @@ function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, ini
         end
 
         if createFigure
+            [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize, probabilityGrid, visited, weight);
             updateHeatmaps(successGrid, distanceGrid, gridSize);
         end
     end
-    
+
     waypoints = waypoints(1, :, 1:waypointIndex); % Trim to actual size
     orientation = orientation(1, :, 1:waypointIndex); % Trim to actual size
 end
@@ -68,18 +74,20 @@ function [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize,
     successGrid = (successGrid - min(successGrid(:))) / max(max(successGrid(:)) - min(successGrid(:)), 0.01);
 end
 
-
 function successPosition = findNextPositionProbabilistic(currentPosition, lidarRange, successGrid)
     maxSuccess = max(successGrid(:));
-    [successY, successX] = find(successGrid == maxSuccess, 10, 'first'); % Note the switch to [successY, successX]
+    [successY, successX] = find(successGrid == maxSuccess, 20, 'first'); % Note the switch to [successY, successX]
     shortestDistance = inf;
-    successPosition = [successY, successX]; % Adjusted to [y, x, z] format
 
     for i = 1:length(successX)
-        distanceToCell = sqrt((successY(i) - currentPosition(1))^2 + (successX(i) - currentPosition(2))^2);
-        if distanceToCell < shortestDistance
+        ydistanceToCell = successY(i) - currentPosition(1);
+        xdistanceToCell = successX(i) - currentPosition(2);
+        distanceToCell = sqrt(ydistanceToCell^2 + xdistanceToCell^2);
+        if  i == 1 || distanceToCell < shortestDistance
+            yposition = successY(i) - floor(lidarRange * ydistanceToCell^2 / distanceToCell^2);
+            xposition = successX(i) - floor(lidarRange * xdistanceToCell^2 / distanceToCell^2);
             shortestDistance = distanceToCell;
-            successPosition = [successY(i), successX(i)]; % Corrected to [y, x, z] format
+            successPosition = [yposition, xposition]; % Corrected to [y, x, z] format
         elseif distanceToCell == shortestDistance
             break;
         end
