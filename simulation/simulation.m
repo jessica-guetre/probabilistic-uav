@@ -13,7 +13,7 @@ terrainNum = 10;
 numEpochs = 50; % number of epochs for the training process
 numIterations = 500;
 learningRate = 0.05; % learning rate for weight adjustment
-weightVals = unique(cat(2, linspace(0, 1, numEpochs - round(numEpochs/2)), linspace(1, 5, round(numEpochs/2))));
+weightVals = unique(cat(2, linspace(0, 1, numEpochs - round(numEpochs/2)), linspace(1, 5, round(numEpochs/2) + 1)));
 featureMapFigure = false;
 successDistanceFigure = false;
 
