@@ -9,7 +9,7 @@ function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, ini
     targetFound = false;
     lidarRange = 10;
 
-    direction = [1, 0];
+    direction = [0, 1];
     segmentLength = 0;
 
     if createFigure
@@ -23,6 +23,8 @@ function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, ini
         [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize, probabilityGrid, visited, weight);
         if strcmp(flightType,'probabilistic')
             successPosition = findNextPositionProbabilistic(currentPosition, lidarRange, successGrid);
+        elseif strcmp(flightType,'parallelLine')
+            [successPosition, direction] = findNextPositionParallelLine(currentPosition, lidarRange, gridSize, direction);
         else
             [successPosition, direction, segmentLength] = findNextPositionSpiral(currentPosition, lidarRange, direction, segmentLength);
         end
@@ -30,6 +32,7 @@ function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, ini
         proposedPath = generatePath(currentPosition, successPosition, uavElevation);
 
         for i = 1:size(proposedPath, 1)
+            % fprintf('waypoint index = %d, path x = %d, y = %d\n', waypointIndex, proposedPath(i, 2), proposedPath(i, 1));
             waypointIndex = waypointIndex + 1;
             waypoints(1, :, waypointIndex) = proposedPath(i, :);
             orientation(1, :, waypointIndex) = calculateOrientation(proposedPath, i);
@@ -94,6 +97,26 @@ function successPosition = findNextPositionProbabilistic(currentPosition, lidarR
     end
 end
 
+function [successPosition, newDirection] = findNextPositionParallelLine(currentPosition, lidarRange, gridSize, lastDirection)
+    successY = currentPosition(1);
+    successX = currentPosition(2);
+
+    if isequal(lastDirection, [1, 0]) || isequal(lastDirection, [-1, 0])
+        newDirection = [0, 1];
+        successX = currentPosition(2) + 1.5 * lidarRange;
+    else
+        if currentPosition(1) >= gridSize(2) - lidarRange
+            newDirection = [-1, 0];
+            successY = round(lidarRange * 0.2);
+        else
+            newDirection = [1, 0];
+            successY = gridSize(1) - round(lidarRange * 0.2);
+        end
+    end
+
+    successPosition = [successY, successX];
+end
+
 function [successPosition, newDirection, newSegmentLength] = findNextPositionSpiral(currentPosition, lidarRange, lastDirection, lastSegmentLength)
     if isequal(lastDirection, [1, 0])
         newDirection = [0, 1];
@@ -116,7 +139,9 @@ end
 
 function proposedPath = generatePath(currentPosition, successPosition, uavElevation)
     xPath = linspace(currentPosition(2), successPosition(2), abs(currentPosition(2) - successPosition(2)) + 1);
+    xPath = xPath(2:end);
     yPath = linspace(currentPosition(1), successPosition(1), abs(currentPosition(1) - successPosition(1)) + 1);
+    xPath = yPath(2:end);
     xPathExtended = [xPath, repmat(successPosition(2), 1, length(yPath))];
     yPathExtended = [repmat(currentPosition(1), 1, length(xPath)), yPath];
     zPathExtended = repmat(uavElevation, 1, length(xPath) + length(yPath));
