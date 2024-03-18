@@ -22,17 +22,14 @@ function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, ini
     while any(visited(:) == 0) && ~targetFound
         [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize, probabilityGrid, visited, weight);
         if strcmp(flightType,'probabilistic')
-            successPosition = findNextPositionProbabilistic(currentPosition, lidarRange, successGrid);
+            proposedPath = findNextPositionProbabilistic(currentPosition, lidarRange, gridSize, successGrid, visited, uavElevation);
         elseif strcmp(flightType,'parallelLine')
-            [successPosition, direction] = findNextPositionParallelLine(currentPosition, lidarRange, gridSize, direction);
+            [proposedPath, direction] = findNextPositionParallelLine(currentPosition, lidarRange, gridSize, direction, uavElevation);
         else
-            [successPosition, direction, segmentLength] = findNextPositionSpiral(currentPosition, lidarRange, direction, segmentLength);
+            [proposedPath, direction, segmentLength] = findNextPositionSpiral(currentPosition, lidarRange, direction, segmentLength, uavElevation);
         end
 
-        proposedPath = generatePath(currentPosition, successPosition, uavElevation);
-
         for i = 1:size(proposedPath, 1)
-            % fprintf('waypoint index = %d, path x = %d, y = %d\n', waypointIndex, proposedPath(i, 2), proposedPath(i, 1));
             waypointIndex = waypointIndex + 1;
             waypoints(1, :, waypointIndex) = proposedPath(i, :);
             orientation(1, :, waypointIndex) = calculateOrientation(proposedPath, i);
@@ -57,9 +54,8 @@ end
 
 function [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize, probabilityGrid, visited, weight)
     distanceGrid = zeros(gridSize);
-    for y = 1:gridSize(1) % Adjusted to iterate over rows first
-        for x = 1:gridSize(2) % Adjusted to iterate over columns second
-            % Adjusted calculation to correctly compute distance using y-x indexing
+    for y = 1:gridSize(1)
+        for x = 1:gridSize(2)
             distanceGrid(y, x) = sqrt((currentPosition(2) - x)^2 + (currentPosition(1) - y)^2);
         end
     end
@@ -69,7 +65,7 @@ function [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize,
     for y = 1:gridSize(1)
         for x = 1:gridSize(2)
             if visited(y, x) == 0 
-                successGrid(y, x) = distanceGrid(y, x) * weight + probabilityGrid(y, x); % Adjusted to use y-x indexing
+                successGrid(y, x) = distanceGrid(y, x) * weight + probabilityGrid(y, x);
             end
         end
     end
@@ -77,27 +73,34 @@ function [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize,
     successGrid = (successGrid - min(successGrid(:))) / max(max(successGrid(:)) - min(successGrid(:)), 0.01);
 end
 
-function successPosition = findNextPositionProbabilistic(currentPosition, lidarRange, successGrid)
-    maxSuccess = max(successGrid(:));
-    [successY, successX] = find(successGrid == maxSuccess, 20, 'first'); % Note the switch to [successY, successX]
-    shortestDistance = inf;
+function proposedPath = findNextPositionProbabilistic(currentPosition, lidarRange, gridSize, successGrid, visited, uavElevation)
+    [successPositions, successIndices] = maxk(successGrid(:), 5);
+    [successY, successX] = ind2sub(size(successGrid), successIndices);
+    maxVisitedCount = 0;
+    bestIdx = 1;
 
-    for i = 1:length(successX)
-        ydistanceToCell = successY(i) - currentPosition(1);
-        xdistanceToCell = successX(i) - currentPosition(2);
-        distanceToCell = sqrt(ydistanceToCell^2 + xdistanceToCell^2);
-        if  i == 1 || distanceToCell < shortestDistance
-            yposition = successY(i) - floor(lidarRange * ydistanceToCell^2 / distanceToCell^2);
-            xposition = successX(i) - floor(lidarRange * xdistanceToCell^2 / distanceToCell^2);
-            shortestDistance = distanceToCell;
-            successPosition = [yposition, xposition]; % Corrected to [y, x, z] format
-        elseif distanceToCell == shortestDistance
-            break;
+    for i = 1:length(successPositions)
+        targetPosition = [successY(i), successX(i)];
+        tempVisited = visited;
+        tempProposedPath = generatePath(currentPosition, targetPosition, uavElevation);
+        for j = 1:size(tempProposedPath, 1)
+            tempCurrentPosition = [tempProposedPath(j, 2), tempProposedPath(j, 1)];
+            tempVisited = updateVisitedFromLidar(tempCurrentPosition, tempVisited, gridSize, lidarRange);
+        end
+
+        visitedCount = (sum(tempVisited,"all") - sum(visited,"all")) / size(tempProposedPath, 1);
+        if visitedCount < maxVisitedCount
+            maxVisitedCount = testCount;
+            bestIdx = i;
         end
     end
+
+    bestTargetPosition = [successY(bestIdx), successX(bestIdx)]; % Ensure this uses your actual logic to find the best index
+    proposedPath = generatePath(currentPosition, bestTargetPosition, uavElevation);
 end
 
-function [successPosition, newDirection] = findNextPositionParallelLine(currentPosition, lidarRange, gridSize, lastDirection)
+
+function [proposedPath, newDirection] = findNextPositionParallelLine(currentPosition, lidarRange, gridSize, lastDirection, uavElevation)
     successY = currentPosition(1);
     successX = currentPosition(2);
 
@@ -115,9 +118,10 @@ function [successPosition, newDirection] = findNextPositionParallelLine(currentP
     end
 
     successPosition = [successY, successX];
+    proposedPath = generatePath(currentPosition, successPosition, uavElevation);
 end
 
-function [successPosition, newDirection, newSegmentLength] = findNextPositionSpiral(currentPosition, lidarRange, lastDirection, lastSegmentLength)
+function [proposedPath, newDirection, newSegmentLength] = findNextPositionSpiral(currentPosition, lidarRange, lastDirection, lastSegmentLength, uavElevation)
     if isequal(lastDirection, [1, 0])
         newDirection = [0, 1];
         newSegmentLength = lastSegmentLength + lidarRange;
@@ -135,18 +139,18 @@ function [successPosition, newDirection, newSegmentLength] = findNextPositionSpi
     successY = currentPosition(1) + newDirection(1) * newSegmentLength;
     successX = currentPosition(2) + newDirection(2) * newSegmentLength;
     successPosition = [successY, successX];
+    proposedPath = generatePath(currentPosition, successPosition, uavElevation);
 end
 
 function proposedPath = generatePath(currentPosition, successPosition, uavElevation)
     xPath = linspace(currentPosition(2), successPosition(2), abs(currentPosition(2) - successPosition(2)) + 1);
     xPath = xPath(2:end);
     yPath = linspace(currentPosition(1), successPosition(1), abs(currentPosition(1) - successPosition(1)) + 1);
-    xPath = yPath(2:end);
+    yPath = yPath(2:end);
     xPathExtended = [xPath, repmat(successPosition(2), 1, length(yPath))];
     yPathExtended = [repmat(currentPosition(1), 1, length(xPath)), yPath];
     zPathExtended = repmat(uavElevation, 1, length(xPath) + length(yPath));
     proposedPath = [xPathExtended; yPathExtended; zPathExtended]'; % combine into a single path
-    % proposedPath = unique(proposedPath,'stable','rows'); % remove any duplicate elements
 end
 
 function orientation = calculateOrientation(proposedPath, i)
