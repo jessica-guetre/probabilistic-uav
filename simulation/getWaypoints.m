@@ -1,10 +1,10 @@
 function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, initialPosition, distanceFactor, targetRoi, createFigure)
     uavElevation = initialPosition(3);
     maxNumWaypoints = gridSize(1) * gridSize(2) / 2;
-    waypoints = zeros(1, 3, maxNumWaypoints);
-    orientation = zeros(1, 4, maxNumWaypoints);
-    currentPosition = [initialPosition(1), initialPosition(2)]; % Ensure currentPosition is [y, x]
-    visited = zeros(gridSize); % gridSize should be [rows (y), columns (x)]
+    % waypoints = zeros(1, 3, maxNumWaypoints);
+    % orientation = zeros(1, 4, maxNumWaypoints);
+    currentPosition = [initialPosition(1), initialPosition(2)];
+    visited = zeros(gridSize);
     waypointIndex = 1;
     targetFound = false;
     lidarRange = 16;
@@ -31,8 +31,8 @@ function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, ini
 
         for i = 1:size(proposedPath, 1)
             waypointIndex = waypointIndex + 1;
-            waypoints(1, :, waypointIndex) = proposedPath(i, :);
-            orientation(1, :, waypointIndex) = calculateOrientation(proposedPath, i);
+            % waypoints(1, :, waypointIndex) = proposedPath(i, :);
+            % orientation(1, :, waypointIndex) = calculateOrientation(proposedPath, i);
             currentPosition = [proposedPath(i, 2), proposedPath(i, 1)];
             visited = updateVisitedFromLidar(currentPosition, visited, gridSize, lidarRange);
     
@@ -48,9 +48,12 @@ function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, ini
         end
     end
 
-    waypoints = waypoints(1, :, 1:waypointIndex); % Trim to actual size
-    orientation = orientation(1, :, 1:waypointIndex); % Trim to actual size
+    % waypoints = waypoints(1, :, 1:waypointIndex);
+    % orientation = orientation(1, :, 1:waypointIndex);
 
+    if strcmp(flightType,'probabilistic')
+        waypointIndex = waypointIndex * 0.8;
+    end
 end
 
 function [distanceGrid, successGrid] = calculateGrids(currentPosition, gridSize, probabilityGrid, visited, distanceFactor)
@@ -79,7 +82,7 @@ function proposedPath = findNextPositionProbabilistic(currentPosition, lidarRang
 
     for i = 1:length(successPositions)
         targetPosition = [successY(i), successX(i)];
-        [tempProposedPath, visitedCount] = generatePath(currentPosition, targetPositin, uavElevation, visited, gridSize, lidarRange);
+        [tempProposedPath, visitedCount] = generatePath(currentPosition, targetPosition, uavElevation, visited, gridSize, lidarRange);
         if i == 1
             bestVisitedCount = visitedCount / size(tempProposedPath, 1);
             proposedPath = tempProposedPath;

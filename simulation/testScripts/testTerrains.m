@@ -1,13 +1,11 @@
 close all;
-terrainNum = 2;
-gridSize = [500, 500];
+gridSize = [600, 1200];
 createFigure = true;
 
 row = 10;
 col = 10;
 targetRoi = [row, row + 1, col, col + 1, 0, 3];
 
-for terrainNum = 1:10
-    [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, createFigure, targetRoi);
-    % [featureVertices, probabilityGrid] = getScene(selectedTerrainType, gridSize, createFigure);
+for t = 1:terrainNum
+    [featureVertices, probabilityGrid] = getScene(t, gridSize, createFigure, targetRoi);
 end

@@ -9,9 +9,9 @@ numTerrains = 10; % 10;
 numIterations = 100; % 500;
 featureMapFigure = false;
 successDistanceFigure = false;
-targetFactors = [0.1, 0.5, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+targetFactors = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2.0, 2.5, 3, 4, 5, 10];
 
-% --------------------------- TARGET AND UAV POSITIONS --------------------
+% --------------------------- TARGET POSITIONS ----------------------------
 targetRois = zeros(numTerrains, numIterations, length(targetFactors), 6);
 for f = 1:length(targetFactors)
     for t = 1:numTerrains
@@ -22,14 +22,64 @@ for f = 1:length(targetFactors)
     end
 end
 
+% --------------------------- PARALLEL ------------------------------------
+flightType = 'parallelLine';
+uavInitialPositions = [repmat(10, numIterations, 1), repmat(10, numIterations, 1), repmat(uavElevation, numIterations, 1)];
+parallelLineData = struct;
+avgWaypointsParallel = zeros(1, length(targetFactors));
+allNumWaypoints = zeros(numTerrains, numIterations);
+
+fprintf('\nParallel\n');
+
+for f = 1:length(targetFactors)
+    for t = 1:numTerrains
+        for i = 1:numIterations
+            [featureVertices, probabilityGrid] = getScene(t, gridSize, featureMapFigure, squeeze(targetRois(t, i, f, :)));
+            allNumWaypoints(t, i) = getWaypoints(flightType, gridSize, probabilityGrid, uavInitialPositions(i, :), 1, squeeze(targetRois(t, i, f, :)), successDistanceFigure);
+        end
+    end
+    avgWaypoints = mean(allNumWaypoints(:)); % flatten array to calculate average
+    fprintf('Target Factor: %d, Avg Waypoints: %.2f\n', targetFactors(f), avgWaypoints);
+
+    avgWaypointsParallel(f) = avgWaypoints;
+    parallelLineData.targetFactor(f).avgWaypoints = avgWaypoints;
+    parallelLineData.targetFactor(f).allNumWaypoints = allNumWaypoints;
+end
+
+save('parallelLine.mat', 'parallelLineData');
+
+% --------------------------- SPIRAL --------------------------------------
+flightType = 'spiral';
+uavInitialPositions = [repmat(round(gridSize(2)/2), numIterations, 1), repmat(round(gridSize(1)/2), numIterations, 1), repmat(uavElevation, numIterations, 1)];
+spiralData = struct;
+avgWaypointsSpiral = zeros(1, length(targetFactors));
+allNumWaypoints = zeros(numTerrains, numIterations);
+
+fprintf('\nSpiral\n');
+
+for f = 1:length(targetFactors)
+    for t = 1:numTerrains
+        for i = 1:numIterations
+            [featureVertices, probabilityGrid] = getScene(t, gridSize, featureMapFigure, squeeze(targetRois(t, i, f, :)));
+            allNumWaypoints(t, i) = getWaypoints(flightType, gridSize, probabilityGrid, uavInitialPositions(i, :), 1, squeeze(targetRois(t, i, f, :)), successDistanceFigure);
+        end
+    end
+    avgWaypoints = mean(allNumWaypoints(:)); % flatten array to calculate average
+    fprintf('Target Factor: %d, Avg Waypoints: %.2f\n', targetFactors(f), avgWaypoints);
+
+    avgWaypointsSpiral(f) = avgWaypoints;
+    spiralData.targetFactor(f).avgWaypoints = avgWaypoints;
+    spiralData.targetFactor(f).allNumWaypoints = allNumWaypoints;
+end
+
+save('spiral.mat', 'spiralData');
+
 % --------------------------- PROBABILISTIC -------------------------------
 flightType = 'probabilistic';
-% uavInitialPositions = [repmat(10, numIterations, 1), repmat(10, numIterations, 1), repmat(uavElevation, numIterations, 1)];
 uavInitialPositions = [repmat(round(gridSize(2)/2), numIterations, 1), repmat(round(gridSize(1)/2), numIterations, 1), repmat(uavElevation, numIterations, 1)];
-% distanceFactors = unique(cat(2, linspace(0.5, 1, numEpochs - round(numEpochs/2)), linspace(1, 10, round(numEpochs/2) + 1)));
-distanceFactors = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2.0, 2.5, 3, 4, 5, 10];
-
 probabilisticData = struct;
+distanceFactors = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2.0, 2.5, 3, 4, 5, 10];
+avgWaypointsProbabilistic = zeros(length(distanceFactors), length(targetFactors));
 
 fprintf('\nProbabilistic\n');
 
@@ -47,6 +97,7 @@ for f = 1:length(targetFactors)
             end
         end
 
+        avgWaypointsProbabilistic(w, f) = avgWaypoints;
         avgWaypoints = mean(allNumWaypoints(:)); % flatten array to calculate average
         if avgWaypoints < probabilisticData.targetFactor(f).bestPerformance
             probabilisticData.targetFactor(f).bestPerformance = avgWaypoints;
@@ -61,53 +112,10 @@ for f = 1:length(targetFactors)
     end
 end
 
-% Save the accumulated data at the end of all epochs
 save('probabilistic.mat', 'probabilisticData');
 
-% --------------------------- PARALLEL ------------------------------------
-flightType = 'parallelLine';
-uavInitialPositions = [repmat(10, numIterations, 1), repmat(10, numIterations, 1), repmat(uavElevation, numIterations, 1)];
-parallelLineData = struct;
-allNumWaypoints = zeros(numTerrains, numIterations);
-
-fprintf('\nParallel\n');
-
-for f = 1:length(targetFactors)
-    for t = 1:numTerrains
-        for i = 1:numIterations
-            [featureVertices, probabilityGrid] = getScene(t, gridSize, featureMapFigure, squeeze(targetRois(t, i, f, :)));
-            allNumWaypoints(t, i) = getWaypoints(flightType, gridSize, probabilityGrid, uavInitialPositions(i, :), 1, squeeze(targetRois(t, i, f, :)), successDistanceFigure);
-        end
-    end
-    avgWaypoints = mean(allNumWaypoints(:)); % flatten array to calculate average
-    fprintf('Target Factor: %d, Avg Waypoints: %.2f\n', targetFactors(f), avgWaypoints);
-
-    parallelLineData.targetFactor(f).avgWaypoints = avgWaypoints;
-    parallelLineData.targetFactor(f).allNumWaypoints = allNumWaypoints;
-end
-
-save('parallelLine.mat', 'parallelLineData');
-
-% --------------------------- SPIRAL --------------------------------------
-flightType = 'spiral';
-uavInitialPositions = [repmat(round(gridSize(2)/2), numIterations, 1), repmat(round(gridSize(1)/2), numIterations, 1), repmat(uavElevation, numIterations, 1)];
-spiralData = struct;
-allNumWaypoints = zeros(numTerrains, numIterations);
-
-fprintf('\nSpiral\n');
-
-for f = 1:length(targetFactors)
-    for t = 1:numTerrains
-        for i = 1:numIterations
-            [featureVertices, probabilityGrid] = getScene(t, gridSize, featureMapFigure, squeeze(targetRois(t, i, f, :)));
-            allNumWaypoints(t, i) = getWaypoints(flightType, gridSize, probabilityGrid, uavInitialPositions(i, :), 1, squeeze(targetRois(t, i, f, :)), successDistanceFigure);
-        end
-    end
-    avgWaypoints = mean(allNumWaypoints(:)); % flatten array to calculate average
-    fprintf('Target Factor: %d, Avg Waypoints: %.2f\n', targetFactors(f), avgWaypoints);
-
-    spiralData.targetFactor(f).avgWaypoints = avgWaypoints;
-    spiralData.targetFactor(f).allNumWaypoints = allNumWaypoints;
-end
-
-save('spiral.mat', 'spiralData');
+% --------------------------- ALL DATA ------------------------------------
+allAvgWaypoints = [avgWaypointsParallel; avgWaypointsSpiral; avgWaypointsProbabilistic];
+avgWaypointsTable = array2table(allAvgWaypoints);
+disp(avgWaypointsTable);
+save('avgWaypointsTable.mat', 'avgWaypointsTable');
