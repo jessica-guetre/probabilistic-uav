@@ -1,18 +1,20 @@
 close all;
-% terrainNum = 2;
+% t = 2;
 gridSize = [100, 100];
 createFigure = false;
 numIterations = 20000;
+targetFactor = 5;
+terrainNum = 10;
 
-for terrainNum = 1:10
-    [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, createFigure);
+for t = 1:terrainNum
+    [featureVertices, probabilityGrid] = getScene(t, gridSize, createFigure);
     targetLocationCounts = zeros(gridSize);
     for i = 1:numIterations
-        roi = getTarget(probabilityGrid);
+        roi = getTarget(probabilityGrid, f);
         targetLocationCounts(roi(1), roi(3)) = targetLocationCounts(roi(1), roi(3)) + 1;
     end
 
-    figure(terrainNum);
+    figure(t);
     imagesc(targetLocationCounts);
     colorbar;
     axis equal;
