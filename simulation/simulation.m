@@ -6,16 +6,16 @@ gridSize = [100, 100];
 colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667]);
 probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [-1, 0.5; 0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [-1, 1.5], 'Elevation', [-1, 2.0]);
 numTerrains = 10; % 10;
-numIterations = 50; % 500;
-featureMapFigure = false;
-successDistanceFigure = false;
+numIterations = 500; % 500;
+featureMapFigure = true;
+successDistanceFigure = true;
 targetFactors = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2.0, 2.5, 3, 4, 5, 10];
 
 % --------------------------- TARGET POSITIONS ----------------------------
 targetRois = zeros(numTerrains, numIterations, length(targetFactors), 6);
 for f = 1:length(targetFactors)
     for t = 1:numTerrains
-        [featureVertices, probabilityGrid] = getScene(t, gridSize, false);
+        [featureVertices, probabilityGrid] = getScene(t, gridSize, false, true);
         for i = 1:numIterations
             targetRois(t, i, f, :) = getTarget(probabilityGrid, targetFactors(f)); % get numIterations total target locations
         end
@@ -34,7 +34,7 @@ fprintf('\nParallel\n');
 for f = 1:length(targetFactors)
     for t = 1:numTerrains
         for i = 1:numIterations
-            [featureVertices, probabilityGrid] = getScene(t, gridSize, featureMapFigure, squeeze(targetRois(t, i, f, :)));
+            [featureVertices, probabilityGrid] = getScene(t, gridSize, featureMapFigure, false, squeeze(targetRois(t, i, f, :)));
             allNumWaypoints(t, i) = getWaypoints(flightType, gridSize, probabilityGrid, uavInitialPositions(i, :), 1, squeeze(targetRois(t, i, f, :)), successDistanceFigure);
         end
     end
@@ -60,7 +60,7 @@ fprintf('\nSpiral\n');
 for f = 1:length(targetFactors)
     for t = 1:numTerrains
         for i = 1:numIterations
-            [featureVertices, probabilityGrid] = getScene(t, gridSize, featureMapFigure, squeeze(targetRois(t, i, f, :)));
+            [featureVertices, probabilityGrid] = getScene(t, gridSize, featureMapFigure, false, squeeze(targetRois(t, i, f, :)));
             allNumWaypoints(t, i) = getWaypoints(flightType, gridSize, probabilityGrid, uavInitialPositions(i, :), 1, squeeze(targetRois(t, i, f, :)), successDistanceFigure);
         end
     end
@@ -84,7 +84,7 @@ avgWaypointsProbabilistic = zeros(length(distanceFactors), length(targetFactors)
 fprintf('\nProbabilistic\n');
 
 for f = 1:length(targetFactors)
-    probabilisticData.targetFactor(f).bestPerformance = Inf; % Keep track of the best performance
+    probabilisticData.targetFactor(f).bestPerformance = Inf; % keep track of the best performance
     probabilisticData.targetFactor(f).bestWeight = 1;
 
     for w = 1:length(distanceFactors)
@@ -92,13 +92,13 @@ for f = 1:length(targetFactors)
 
         for t = 1:numTerrains
             for i = 1:numIterations
-                [featureVertices, probabilityGrid] = getScene(t, gridSize, featureMapFigure, squeeze(targetRois(t, i, f, :)));
+                [featureVertices, probabilityGrid] = getScene(t, gridSize, featureMapFigure, false, squeeze(targetRois(t, i, f, :)));
                 allNumWaypoints(t, i) = getWaypoints(flightType, gridSize, probabilityGrid, uavInitialPositions(i, :), distanceFactors(w), squeeze(targetRois(t, i, f, :)), successDistanceFigure);
                 fprintf('Target Factor: %.1f, Distance Factor: %.1f, Waypoints: %.2f\n', targetFactors(f), distanceFactors(w), allNumWaypoints(t, i));
             end
         end
 
-        avgWaypointsProbabilistic(w, f) = avgWaypoints;
+        % avgWaypointsProbabilistic(w, f) = avgWaypoints;
         avgWaypoints = mean(allNumWaypoints(:)); % flatten array to calculate average
         if avgWaypoints < probabilisticData.targetFactor(f).bestPerformance
             probabilisticData.targetFactor(f).bestPerformance = avgWaypoints;

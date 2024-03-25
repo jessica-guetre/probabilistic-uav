@@ -1,13 +1,13 @@
-function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, createFigure, targetRoi)
+function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, createFigure, forTarget, targetRoi)
     terrainTypes = {'Type1', 'Type2', 'Type3', 'Type4', 'Type5', 'Type6', 'Type7', 'Type8', 'Type9', 'Type10'};
     colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667], 'Field', [0.4667 0.6745 0.1882], 'Target', [1 0 0]);
-    probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [-1, 0.5; 0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [-1, 1.5], 'Elevation', [-1, 2.0]);
+    probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.6; 100, 1.7; 150, 1.4; 200, 1.3], 'Water', [-1, 0.5; 0, 5.2; 50, 4.5; 100, 3.8; 150, 3.1; 200, 2.6], 'Forest', [-1, 0.7], 'Elevation', [-1, 1.8]);
 
     featureVertices = getFeatureVertices(terrainTypes{terrainNum}, gridSize);
-    probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities);
+    probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities, forTarget);
 
     if createFigure
-        figure(terrainNum * 10); % Feature Probability Heatmap
+        figure(terrainNum * 10); % feature probability heatmap
         imagesc(probabilityGrid);
         colorbar;
         axis equal;
@@ -16,7 +16,7 @@ function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, cre
         xlim([1 gridSize(2)]); xlabel('x (m)');
         ylim([1 gridSize(1)]); ylabel('y (m)');
 
-        figure(terrainNum * 10 + 1); % Feature Map
+        figure(terrainNum * 10 + 1); % feature map
         hold on;
         axis equal;
         title('Feature Map');
@@ -39,7 +39,7 @@ function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, cre
             colorsForLegend(end+1, :) = color;
         end
 
-        if nargin == 4
+        if nargin == 5
             targetVertices = [targetRoi(3), targetRoi(1); targetRoi(4), targetRoi(1); targetRoi(4), targetRoi(2); targetRoi(3), targetRoi(2)];
             patch('Vertices', targetVertices, 'Faces', [1, 2, 3, 4], 'FaceColor', colors.Target, 'EdgeColor', 'none');
             legendEntries{end + 1} = 'Target';
@@ -170,10 +170,15 @@ function featureVertices = getFeatureVertices(terrainType, gridSize)
     end
 end
 
-function probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities)
+function probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities, forTarget)
     probabilityGrid = ones(gridSize);
     for featureType = fieldnames(featureVertices)'
-        probabilityInfo = probabilities.(featureType{1});
+        if strcmp(featureType{1}, 'Forest') && forTarget == true % UAV lidar sensor has reduced vision in forest, target does not consider this
+            probabilityInfo = [-1, 1.0];
+        else
+            probabilityInfo = probabilities.(featureType{1});
+        end
+
         binaryMask = zeros(gridSize);
         for j = 1:length(featureVertices.(featureType{1}))
             vertices = featureVertices.(featureType{1}){j};

@@ -2,12 +2,12 @@ close all;
 
 gridSize = [100, 100];
 createFigure = true;
-numIterations = 10000;
+numIterations = 10;
 targetFactor = 5;
 terrainNum = 10;
 
 % for t = 1:terrainNum
-%     [featureVertices, probabilityGrid] = getScene(t, gridSize, createFigure);
+%     [featureVertices, probabilityGrid] = getScene(t, gridSize, createFigure, true);
 %     targetLocationCounts = zeros(gridSize);
 %     for i = 1:numIterations
 %         roi = getTarget(probabilityGrid, targetFactor);
@@ -25,7 +25,7 @@ terrainNum = 10;
 % end
 
 targetFactors = [0, 0.5, 1.0, 2.0, 5, 10];
-[featureVertices, probabilityGrid] = getScene(8, gridSize, createFigure);
+[featureVertices, probabilityGrid] = getScene(8, gridSize, createFigure, true);
 for f = 1:length(targetFactors)
     targetLocationCounts = zeros(gridSize);
     for i = 1:numIterations
@@ -43,7 +43,7 @@ for f = 1:length(targetFactors)
     set(gca, 'YDir', 'normal');
 end
 
-% [featureVertices, probabilityGrid] = getScene(8, gridSize, createFigure);
+% [featureVertices, probabilityGrid] = getScene(8, gridSize, createFigure, true);
 % targetLocationCounts = zeros(gridSize);
 % for i = 1:numIterations
 %     roi = getTarget(probabilityGrid, targetFactor);
