@@ -4,11 +4,11 @@ close all;
 uavElevation = 12;
 gridSize = [100, 100];
 colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667]);
-probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [-1, 0.5; 0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [-1, 1.5], 'Elevation', [-1, 2.0]);
+probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.7; 100, 1.9; 150, 1.5; 200, 1.3], 'Water', [-1, 0.5; 0, 5.5; 50, 3.5; 100, 3.0; 150, 2.4; 200, 2.1], 'Forest', [-1, 0.7], 'Elevation', [-1, 1.8]);
 numTerrains = 10; % 10;
-numIterations = 500; % 500;
-featureMapFigure = true;
-successDistanceFigure = true;
+numIterations = 1; % 500;
+featureMapFigure = false;
+successDistanceFigure = false;
 targetFactors = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2.0, 2.5, 3, 4, 5, 10];
 
 % --------------------------- TARGET POSITIONS ----------------------------
@@ -104,6 +104,8 @@ for f = 1:length(targetFactors)
             probabilisticData.targetFactor(f).bestPerformance = avgWaypoints;
             probabilisticData.targetFactor(f).bestWeight = distanceFactors(w);
         end
+
+        avgWaypointsProbabilistic(f, w) = avgWaypoints;
 
         probabilisticData.targetFactor(f).distanceFactor(w).distanceFactor = distanceFactors(w); % store data for each epoch in the structure
         probabilisticData.targetFactor(f).distanceFactor(w).avgWaypoints = avgWaypoints;

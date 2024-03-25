@@ -1,4 +1,17 @@
 function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, createFigure, forTarget, targetRoi)
+% Constructs  scene by defining feature vertices and calculating probability grids based on terrain features.
+%
+% Inputs:
+% - terrainNum (scalar): Index specifying the terrain type.
+% - gridSize (2-element vector): Size of the grid [rows, cols].
+% - createFigure (boolean): Indicates whether to create visualizations.
+% - forTarget (boolean): Adjusts probability calculations if the scene is for target placement.
+% - targetRoi (4-element vector, optional): Specifies the region of interest for the target [startRow, endRow, startCol, endCol].
+%
+% Outputs:
+% - featureVertices (struct): Contains vertices for each terrain feature.
+% - probabilityGrid (matrix): Grid of probabilities for each cell, representing the likelihood of finding the target.
+
     terrainTypes = {'Type1', 'Type2', 'Type3', 'Type4', 'Type5', 'Type6', 'Type7', 'Type8', 'Type9', 'Type10'};
     colors = struct('Trail', [0.4 0.2 0], 'Water', [0.2 0.6 1], 'Forest', [0 0.3333 0], 'Elevation', [0.4667 0.4667 0.4667], 'Field', [0.4667 0.6745 0.1882], 'Target', [1 0 0]);
     probabilities = struct('Trail', [-1, 7.0; 0, 7.0; 50, 2.6; 100, 1.7; 150, 1.4; 200, 1.3], 'Water', [-1, 0.5; 0, 5.2; 50, 4.5; 100, 3.8; 150, 3.1; 200, 2.6], 'Forest', [-1, 0.7], 'Elevation', [-1, 1.8]);
@@ -55,6 +68,15 @@ function [featureVertices, probabilityGrid] = getScene(terrainNum, gridSize, cre
 end
 
 function featureVertices = getFeatureVertices(terrainType, gridSize)
+% Generates feature vertices for a specified terrain type within a given grid size.
+%
+% Inputs:
+% - terrainType (string): Specifies the type of terrain to generate features for.
+% - gridSize (2-element vector): Size of the grid [rows, cols] for scaling the features.
+%
+% Output:
+% - featureVertices (struct): Contains vertices for each terrain feature, scaled according to the grid size.
+
     featureVertices = struct();
 
     scaleFactorX = gridSize(2) / 100;
@@ -171,6 +193,17 @@ function featureVertices = getFeatureVertices(terrainType, gridSize)
 end
 
 function probabilityGrid = terrainProbabilities(featureVertices, gridSize, probabilities, forTarget)
+% Calculates a probability grid based on terrain features and their respective probabilities.
+%
+% Inputs:
+% - featureVertices (struct): Contains vertices for each terrain feature.
+% - gridSize (2-element vector): Size of the grid [rows, cols].
+% - probabilities (struct): Probability values associated with each terrain feature.
+% - forTarget (boolean): Indicates if the probability adjustments for targeting are applied.
+%
+% Output:
+% - probabilityGrid (matrix): Grid of probabilities for each cell, indicating the likelihood of each terrain feature.
+
     probabilityGrid = ones(gridSize);
     for featureType = fieldnames(featureVertices)'
         if strcmp(featureType{1}, 'Forest') && forTarget == true % UAV lidar sensor has reduced vision in forest, target does not consider this
