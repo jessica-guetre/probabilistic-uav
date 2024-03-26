@@ -63,10 +63,6 @@ function waypointIndex = getWaypoints(flightType, gridSize, probabilityGrid, ini
 
     % waypoints = waypoints(1, :, 1:waypointIndex);
     % orientation = orientation(1, :, 1:waypointIndex);
-
-    if strcmp(flightType,'probabilistic')
-        waypointIndex = waypointIndex * 0.8;
-    end
 end
 
 function [proximityGrid, successGrid] = calculateGrids(currentPosition, gridSize, probabilityGrid, visited, distanceFactor)
